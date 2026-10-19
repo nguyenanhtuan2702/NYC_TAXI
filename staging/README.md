@@ -170,7 +170,7 @@ Get-Content staging\pg_checks\03_profile_by_vendor.sql | docker compose exec -T 
 Get-Content staging\pg_checks\04_profile_negative_fare.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
 ```
 
-Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; việc xử lý bản ghi lỗi thuộc tầng Dimension/Fact.
+Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
 
 ## 11. Thông tin cho người dùng bảng Stage
 
@@ -179,7 +179,7 @@ Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ d
 - `cbd_congestion_fee` là NULL với toàn bộ 12 tháng 2024.
 - Giờ đón/trả khách giữ nguyên giờ địa phương New York như nguồn. `batch_id` và `load_datetime` theo giờ của container (UTC).
 - Khóa liên kết địa lý là `location_id` (không join theo tên Zone vì có tên trùng).
-- Nối với Zone Lookup: `pu_location_id`/`do_location_id` đều nằm trong 1–265.
+- Nối với Zone Lookup: `pu_location_id`/`do_location_id` không có NULL và đều nằm trong 1–265.
 
 ## 12. Xử lý sự cố
 
