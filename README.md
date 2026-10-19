@@ -78,7 +78,11 @@ nyc-yellow-taxi-mds/
    ```bash
    cp .env.example .env
    ```
-2. Đặt các file dữ liệu lớn (CSV/Parquet năm 2024–2025) vào thư mục `data/raw/`. Giai đoạn code thử (18–20/10) sử dụng sẵn file mẫu trong `data/sample/`.
+   2. Tải 24 file Parquet Yellow Taxi 2024–2025 về `data/raw/` (chạy 1 lần, file đã có sẽ được bỏ qua; thư mục này bị `.gitignore` chặn nên không commit):
+```powershell
+      powershell -ExecutionPolicy Bypass -File data\download_raw.ps1
+```
+      Giai đoạn code thử (18–20/10) có thể dùng file mẫu trong `data/sample/`.
 
 ### Bước 2: Khởi động PostgreSQL Staging và Mage.ai
 ```bash
