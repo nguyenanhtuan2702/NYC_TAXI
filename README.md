@@ -11,54 +11,61 @@ Hệ thống được thiết kế theo mô hình **Modern Data Stack** kết h�
 | **Data Sources** | CSV / Parquet / Shapefile | 3 nguồn dữ liệu chính: `Yellow Taxi Trip Records` (2024–2025), `Taxi Zone Lookup` (CSV), và `Taxi Zone Boundaries` (Shapefile ZIP). |
 | **Data Ingestion & Orchestration** | **Mage.ai** | Điều phối luồng đọc dữ liệu thô, kiểm tra định dạng sơ bộ, nạp vào PostgreSQL Staging và kích hoạt lệnh chạy `dbt`. |
 | **Staging Database** | **PostgreSQL** | Lưu trữ dữ liệu bảng tạm (`stg_yellow_taxi_trips`, `stg_taxi_zone_lookup`) và bảng ghi log kiểm soát quá trình ETL (`etl_control`). |
-| **Data Transformation & Testing** | **dbt (`dbt-duckdb`)** | Kết nối trực tiếp vào PostgreSQL Staging, làm sạch dữ liệu, sinh khóa thay thế (`Surrogate Key`), nạp vào 8 bảng Dimension, 1 bảng Fact và kiểm thử tự động (`dbt test`). |
-| **Data Warehouse (DDS & OLAP)** | **DuckDB** | Lưu trữ mô hình **Star Schema** (`FactTaxiTrip` và 8 bảng `Dim*`) cùng hệ thống View phục vụ 8 câu truy vấn OLAP cơ bản (A1–A8) và 6 câu mở rộng (B1–B5b). |
-| **BI & Visualization** | **Power BI (`.pbip`)** | Kết nối DuckDB, định nghĩa các **Semantic / Calculated Measures** bằng DAX (`AvgSpeed`, `AvgTipRate`, `RevenueGrowthRate`,...) và trực quan hóa Dashboard / Bản đồ không gian. |
+| **Data Transformation & Testing** | **dbt** | Đọc PostgreSQL Staging, làm sạch dữ liệu, tạo khóa thay thế và xây dựng Dimension, Fact trong schema `dds`; kiểm thử bằng `dbt test`. |
+| **Data Warehouse (DDS & OLAP)** | **PostgreSQL** | Lưu mô hình **Star Schema** (`FactTaxiTrip` và 8 bảng `Dim*`) trong schema `dds`, cùng các view OLAP cơ bản (A1–A8) và mở rộng (B1–B5b). |
+| **BI & Visualization** | **Power BI (`.pbip`)** | Kết nối PostgreSQL, định nghĩa các measure bằng DAX (`AvgSpeed`, `AvgTipRate`, `RevenueGrowthRate`,...) và trực quan hóa Dashboard / bản đồ. |
 
 ## 2. Cấu trúc Cây Thư mục
 
 ```text
-nyc-yellow-taxi-mds/
-├── README.md                                        # Tài liệu hướng dẫn quy trình làm việc và sử dụng Git
-├── docker-compose.yml                               # Khởi chạy Mage.ai + PostgreSQL
-├── .env.example                                     # Biến môi trường mẫu
-├── .gitignore                                       # Chặn file dữ liệu nặng (.csv, .parquet, .duckdb)
-│
-├── data/                                            # Quản lý dữ liệu nguồn
-│   ├── raw/                                         # [Git Ignore] File CSV/Parquet gốc 2024-2025 tại máy cá nhân
-│   ├── sample/                                      # [Commit] Dữ liệu mẫu nhỏ (1.000 - 10.000 dòng) để chạy thử
-│   └── reference/                                   # [Commit] taxi_zone_lookup.csv & taxi_zones_shapefile.zip
-│
-├── postgres_staging/                                # [Người 1 - Vân] DDL tạo bảng Staging & kiểm tra nhanh trên Postgres
-│   ├── init_sql/
-│   └── pg_checks/
-│
-├── mage_nyc_taxi/                                   # [Người 1 - Vân & Người 4 - Bee] Pipelines điều phối Ingestion & E2E
+NYC_TAXI/
+├── README.md
+├── .env.example
+├── .gitignore
+├── data/
+│   ├── raw/                                         # Dữ liệu nguồn (không commit)
+│   ├── reference/                                   # Dữ liệu tra cứu và ranh giới khu vực
+│   └── sample/                                      # Dữ liệu mẫu để chạy thử
+├── staging/
+│   ├── init_sql/                                    # DDL khởi tạo PostgreSQL Staging
+│   └── pg_checks/                                   # Truy vấn kiểm tra Staging
+├── mage/
 │   ├── pipelines/
+│   │   ├── 01_ingest_source_to_postgres/
+│   │   └── 02_end_to_end_elt_pipeline/
 │   ├── data_loaders/
 │   ├── transformers/
 │   ├── data_exporters/
 │   └── custom/
-│
-├── dbt_nyc_taxi/                                    # [Khoa, Thịnh, Bee] Transformation & Data Quality Tests
-│   ├── dbt_project.yml
-│   ├── packages.yml
-│   ├── profiles.yml
-│   ├── seeds/                                       # [Người 2 - Khoa] Danh mục tĩnh (Vendor, RateCode, PaymentType, Groups)
-│   ├── macros/                                      # [Khoa & Thịnh] Macro sinh Surrogate Key & kết nối Postgres
+├── dbt/
+│   ├── macros/
 │   ├── models/
-│   │   ├── staging/                                 # [Người 1 - Vân] Khai báo sources & staging views từ Postgres
+│   │   ├── staging/
 │   │   ├── dds/
-│   │   │   ├── _dds__models.yml                     # [Bee, Khoa, Thịnh] Ràng buộc PK, FK, not_null, unique
-│   │   │   ├── dimensions/                          # [Người 2 - Khoa] 8 bảng Dimension (DimDate, DimTime, DimLocation,...)
-│   │   │   └── facts/                               # [Người 3 - Thịnh] Bảng FactTaxiTrip
-│   │   └── olap_marts/                              # [Cả nhóm] Views phục vụ phân tích cơ bản (A1-A8) & mở rộng (B1-B5b)
-│   └── tests/                                       # [Người 4 - Bee] Singular dbt tests kiểm tra chéo Staging - Dim - Fact
-│
-├── warehouse/                                       # [Git Ignore] Chứa file nyc_taxi_dwh.duckdb sinh ra khi chạy dbt
-├── powerbi/                                         # [Cả nhóm] File Power BI Project (.pbip), mã DAX & bản đồ TopoJSON
-└── docs/                                            # Tài liệu mapping, biên bản kiểm thử và báo cáo (Mốc 1/11 & 1/12)
+│   │   │   ├── dimensions/
+│   │   │   └── facts/
+│   │   └── olap_marts/
+│   │       ├── basic/
+│   │       └── advanced/
+│   ├── seeds/
+│   └── tests/
+│       ├── staging/
+│       ├── dimensions/
+│       └── facts/
+├── warehouse/                                       # Đầu ra cục bộ của dự án
+├── powerbi/
+│   ├── dax/
+│   └── map_shapes/
+└── docs/
+    ├── 01_data_modeling/
+    ├── 02_test_plans_and_logs/
+    └── 03_reports/
+        ├── sections/
+        ├── milestone_01_11/
+        └── final_01_12/
 ```
+
+> Repo hiện mới có khung thư mục; `docker-compose.yml` và các file cấu hình dbt chưa có trong cây thư mục.
 
 ## 3. Phân công Nhiệm vụ & Vùng Làm việc trên Git
 
@@ -66,10 +73,10 @@ nyc-yellow-taxi-mds/
 
 | Thành viên | Vai trò chính | Nhánh làm việc (`Feature Branch`) | Thư mục phụ trách chính | Người Review & Chạy thử chéo (28/10) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Người 1 (Vân)** | **Ingestion & Staging** (Source → Postgres Staging; Thống kê thời gian sau 1/11) | `feat/staging-van` | `postgres_staging/`, `mage_nyc_taxi/data_loaders/`, `mage_nyc_taxi/data_exporters/`, `dbt_nyc_taxi/models/staging/`, `docs/03_reports/sections/01_staging_survey_van.md` | **Khoa** |
-| **Người 2 (Khoa)** | **Dimension Modeling** (Staging → 8 bảng Dim trên DuckDB; Truy vấn doanh thu/khu vực) | `feat/dimension-khoa` | `dbt_nyc_taxi/seeds/`, `dbt_nyc_taxi/models/dds/dimensions/`, `docs/03_reports/sections/02_dimension_design_khoa.md` | **Thịnh** |
-| **Người 3 (Thịnh)** | **Fact & OLAP Modeling** (Staging + Dim → `FactTaxiTrip`; Truy vấn mở rộng) | `feat/fact-thinh` | `dbt_nyc_taxi/models/dds/facts/`, `dbt_nyc_taxi/models/olap_marts/`, `docs/03_reports/sections/03_fact_etl_thinh.md` | **Bee** |
-| **Người 4 (Bee)** | **Testing, Orchestration & Docs** (Test plan, `dbt test`, tích hợp pipeline, tổng hợp báo cáo) | `feat/testing-bee` | `dbt_nyc_taxi/tests/`, `dbt_nyc_taxi/models/dds/_dds__models.yml`, `mage_nyc_taxi/pipelines/02_end_to_end_elt_pipeline/`, `docs/02_test_plans_and_logs/`, `README.md` | **Vân** |
+| **Người 1 (Vân)** | **Ingestion & Staging** (Source → PostgreSQL Staging; thống kê thời gian sau 1/11) | `feat/staging-van` | `staging/`, `mage/data_loaders/`, `mage/data_exporters/`, `dbt/models/staging/`, `docs/03_reports/sections/` | **Khoa** |
+| **Người 2 (Khoa)** | **Dimension Modeling** (Staging → 8 bảng Dim trong schema `dds`; truy vấn doanh thu/khu vực) | `feat/dimension-khoa` | `dbt/seeds/`, `dbt/models/dds/dimensions/`, `docs/03_reports/sections/` | **Thịnh** |
+| **Người 3 (Thịnh)** | **Fact & OLAP Modeling** (Staging + Dim → `FactTaxiTrip`; truy vấn mở rộng) | `feat/fact-thinh` | `dbt/models/dds/facts/`, `dbt/models/olap_marts/`, `docs/03_reports/sections/` | **Bee** |
+| **Người 4 (Bee)** | **Testing, Orchestration & Docs** (Test plan, `dbt test`, tích hợp pipeline, tổng hợp báo cáo) | `feat/testing-bee` | `dbt/tests/`, `dbt/models/dds/`, `mage/pipelines/02_end_to_end_elt_pipeline/`, `docs/02_test_plans_and_logs/`, `README.md` | **Vân** |
 
 ## 4. Hướng dẫn Khởi chạy Nhanh (Local Setup)
 
@@ -85,19 +92,21 @@ nyc-yellow-taxi-mds/
 docker compose up -d
 ```
 * Giao diện **Mage.ai**: truy cập tại `http://localhost:6789`
-* CSDL **PostgreSQL Staging**: cổng `localhost:5432` (Database: `nyc_taxi_staging`)
+* CSDL **PostgreSQL**: cổng `localhost:5432` (database/schema theo cấu hình môi trường).
 
-### Bước 3: Chạy dbt xây dựng Star Schema trên DuckDB
-Di chuyển vào thư mục `dbt_nyc_taxi` (hoặc chạy qua terminal của Mage.ai container):
+### Bước 3: Chạy dbt xây dựng Star Schema trong PostgreSQL
+Di chuyển vào thư mục `dbt` (hoặc chạy qua terminal của Mage.ai container):
 ```bash
-cd dbt_nyc_taxi
+cd dbt
 dbt deps                                # Cài đặt gói dbt_utils
 dbt seed                                # Nạp các bảng danh mục tĩnh (Vendor, RateCode, PaymentType, Groups)
 dbt run --select staging                # Tạo các staging views kết nối PostgreSQL
-dbt run --select tag:dimension          # Tạo 8 bảng Dimension trong DuckDB
-dbt run --select tag:fact               # Tạo bảng FactTaxiTrip trong DuckDB
+dbt run --select tag:dimension          # Tạo 8 bảng Dimension trong schema dds
+dbt run --select tag:fact               # Tạo bảng FactTaxiTrip trong schema dds
 dbt test                                # Chạy toàn bộ bộ kiểm thử dữ liệu của Bee
 ```
+
+> Các lệnh trên cần `docker-compose.yml` và cấu hình dự án dbt; hiện các file này chưa có trong repo.
 
 ## 5. Quy trình Làm việc với Git (Git Workflow)
 
@@ -111,7 +120,7 @@ Nhóm sử dụng mô hình **3 tầng nhánh** để đảm bảo nhánh nộp 
 #### 1. Lần đầu tiên lấy dự án về máy
 ```bash
 git clone <URL_REPOSITORY_CUA_NHOM>
-cd nyc-yellow-taxi-mds
+cd NYC_TAXI
 git checkout develop
 git checkout -b feat/staging-van        # Thay bằng tên nhánh của bạn
 ```
@@ -132,7 +141,7 @@ git status
 
 # 2. Đưa các file cần lưu vào vùng chờ (Staging Area)
 git add <duong-dan-file>
-# Ví dụ: git add dbt_nyc_taxi/models/dds/dimensions/dim_location.sql
+# Ví dụ: git add dbt/models/dds/dimensions/
 
 # 3. Tạo commit với nội dung rõ ràng theo chuẩn của nhóm
 git commit -m "feat(dim): add dim_location model with surrogate key and unknown member"
@@ -145,7 +154,7 @@ git push origin feat/staging-van
 1. Lên trang GitHub của nhóm, bấm **Compare & pull request** từ nhánh cá nhân (`feat/...`) vào nhánh **`develop`**.
 2. Điền ngắn gọn trong phần mô tả PR:
    * **Input nhận vào**: (ví dụ: bảng `stg_yellow_taxi_trips` từ Postgres).
-   * **Output tạo ra**: (ví dụ: bảng `dim_vendor`, `dim_rate_code` trong DuckDB).
+   * **Output tạo ra**: (ví dụ: bảng `dim_vendor`, `dim_rate_code` trong schema `dds` của PostgreSQL).
    * **Cách chạy thử**: (ví dụ: `dbt run --select dim_vendor`).
 3. Gắn thẻ (**Assign Reviewer**) thành viên phụ trách kiểm thử chéo theo bảng phân công ở Mục 3 để duyệt và nhấn **Merge pull request**.
 
@@ -194,9 +203,9 @@ git push origin feat/staging-van
 
 ## 7. Năm Nguyên tắc Sống còn Khi Dùng Git Trong Nhóm
 
-1. **Tuyệt đối không commit dữ liệu thô (`data/raw/`) và file `.duckdb`**: Trước khi gõ `git commit`, luôn chạy `git status` để chắc chắn không có file `.csv`, `.parquet` lớn hơn 50MB hay file `nyc_taxi_dwh.duckdb` nằm trong danh sách. Nếu lỡ `git add`, dùng lệnh `git reset <tên_file>` để gỡ ra ngay.
+1. **Không commit dữ liệu thô (`data/raw/`) hoặc thông tin bí mật**: Trước khi commit, chạy `git status` để chắc chắn không đưa dữ liệu lớn, file `.env` hoặc thông tin đăng nhập lên Git.
 2. **Không dùng `git add .` một cách mù quáng**: Hãy dùng `git status` rồi `git add <đường_dẫn_thư_mục_của_bạn>` để tránh vô tình đẩy các file cấu hình tạm trên máy cá nhân lên kho chung.
-3. **Không sửa trực tiếp file `.pbix` nhị phân cùng lúc**: Khi làm Power BI (giai đoạn 16–21/11), lưu dưới định dạng **Power BI Project (`.pbip`)** và tách công thức DAX vào thư mục `powerbi/dax/` để Git quản lý được từng dòng thay đổi.
+3. **Không sửa trực tiếp file `.pbix` nhị phân cùng lúc**: Khi làm Power BI (giai đoạn 16–21/11), lưu dưới định dạng **Power BI Project (`.pbip`)** và quản lý công thức DAX trong `powerbi/dax/` để Git theo dõi được thay đổi.
 4. **Ghi rõ số dòng bị lọc trong báo cáo & commit**: Khi viết logic lọc bỏ bản ghi không hợp lệ ở tầng Staging hoặc Fact (ví dụ: `fare_amount <= 0`, `dropoff < pickup`), phải ghi chú rõ điều kiện lọc trong file model và tài liệu `docs/02_test_plans_and_logs/` để kết quả đối chiếu của Bee khớp 100%.
 5. **Không bao giờ dùng `git push --force` lên nhánh `develop` hoặc `main`**: Mọi xung đột (Conflict) cần được xử lý tại nhánh cá nhân bằng cách `git merge develop` và trao đổi trực tiếp với người liên quan.
 
@@ -204,11 +213,11 @@ git push origin feat/staging-van
 
 | Thời gian | Mốc công việc trọng tâm | Đầu ra bắt buộc trên Git |
 | :--- | :--- | :--- |
-| **18–20/10** | Khởi tạo repo, thống nhất schema, chạy thử dữ liệu mẫu | Có đủ khung thư mục, `docker-compose.yml`, mapping tài liệu trong `docs/01_data_modeling/` và `test_plan.md`. |
+| **18–20/10** | Khởi tạo repo, thống nhất schema, chạy thử dữ liệu mẫu | Có khung thư mục, cấu hình môi trường, mapping tài liệu trong `docs/01_data_modeling/` và kế hoạch kiểm thử trong `docs/02_test_plans_and_logs/`. |
 | **21–23/10** | Triển khai code Staging, Dimension, chuẩn bị Fact & Test | Mỗi thành viên push script đầu tiên lên nhánh `feat/...`; họp 5–10 phút ngày **23/10** giải thích rõ input/output. |
 | **24–25/10** | Bàn giao Staging & Dimension, nạp thử `FactTaxiTrip` | Vân và Khoa merge code ổn định vào `develop`; Thịnh kết nối tra cứu khóa Surrogate Key cho Fact. |
 | **26–28/10** | Tích hợp toàn pipeline & Kiểm thử chéo (Cross-testing) | Ngày **28/10**: Đổi người chạy thử chéo (`Khoa chạy Stage`, `Thịnh chạy Dim`, `Bee chạy Fact`, `Vân chạy Test`). |
 | **29–30/10** | Viết báo cáo cá nhân & Rà soát đồng bộ code – báo cáo | 4 thành viên push file báo cáo vào `docs/03_reports/sections/`; Bee tổng hợp và cả nhóm duyệt ngày **30/10**. |
 | **31/10 – 01/11** | Đóng gói & Nộp bài **Mốc 1 (Data Modeling & ETL)** | Merge `develop` sang `main`, gắn tag `v1.0-milestone-01-11`, xuất PDF và đóng gói ZIP kiểm tra lần cuối. |
-| **02/11 – 15/11** | Hoàn thiện ETL toàn bộ dữ liệu & Truy vấn OLAP | Hoàn chỉnh pipeline chạy lại tự động (8/11) và các view OLAP cơ bản/mở rộng trong `models/olap_marts/` (15/11). |
+| **02/11 – 15/11** | Hoàn thiện ETL toàn bộ dữ liệu & Truy vấn OLAP | Hoàn chỉnh pipeline chạy lại tự động (8/11) và các view OLAP cơ bản/mở rộng trong `dbt/models/olap_marts/` (15/11). |
 | **16/11 – 30/11** | Xây dựng Power BI Dashboard, Bản đồ & Báo cáo cuối kỳ | Hoàn thiện `powerbi/` (21/11), chốt báo cáo cuối kỳ (26/11), review chéo toàn hệ thống (30/11) và nộp bài (**1/12**). |
