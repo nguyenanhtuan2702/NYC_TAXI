@@ -36,5 +36,7 @@ spark_config: {}
 tags: []
 type: python
 uuid: ingest_trips_to_postgres
+variables:
+  file_name: ALL
 variables_dir: /home/src/mage_data/mage
 widgets: []

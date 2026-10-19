@@ -24,9 +24,7 @@ TARGET = ['vendor_id', 'tpep_pickup_datetime', 'tpep_dropoff_datetime',
 AUDIT = ['source_file_name', 'source_row_number', 'batch_id']
 
 
-@data_exporter
-def load_trips_to_stage(*args, **kwargs):
-    file_name = kwargs.get('file_name', 'yellow_tripdata_2024-01.parquet')
+def load_one(file_name):
     batch_id = int(datetime.now().strftime('%Y%m%d%H%M%S'))
     started = datetime.now()
     pf = pq.ParquetFile(os.path.join(RAW_DIR, file_name))
@@ -73,3 +71,23 @@ def load_trips_to_stage(*args, **kwargs):
     print(file_name, status, rows_read, loaded, err)
     if status == 'FAILED':
         raise RuntimeError(err)
+
+
+@data_exporter
+def load_trips_to_stage(*args, **kwargs):
+    name = kwargs.get('file_name', 'ALL')
+    if name != 'ALL':
+        load_one(name)
+        return
+    conn = psycopg2.connect(
+        host=os.environ['POSTGRES_HOST'], port=os.environ['POSTGRES_PORT'],
+        dbname=os.environ['POSTGRES_DB'], user=os.environ['POSTGRES_USER'],
+        password=os.environ['POSTGRES_PASSWORD'])
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT source_file_name FROM control.etl_control "
+                "WHERE status='SUCCESS' AND rows_read = rows_loaded")
+    done = {r[0] for r in cur.fetchall()}
+    conn.close()
+    for f in sorted(x for x in os.listdir(RAW_DIR) if x.endswith('.parquet')):
+        if f not in done:
+            load_one(f)
