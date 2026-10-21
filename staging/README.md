@@ -160,17 +160,37 @@ Phải trả về `(0 rows)`.
 
 Hằng ngày: `docker compose up -d` để bật, `docker compose down` để tắt (**không** thêm `-v`).
 
-## 10. Các truy vấn đo lỗi dữ liệu thô
-
-Nằm trong `staging/pg_checks/`. Chạy từ file (mỗi lệnh quét toàn bảng nên mất vài phút):
-
-```powershell
-Get-Content staging\pg_checks\02_profile_errors.sql | docker compose exec -T postgres psql -P pager=off -x -U taxi_user -d nyc_taxi_staging
-Get-Content staging\pg_checks\03_profile_by_vendor.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
-Get-Content staging\pg_checks\04_profile_negative_fare.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
-```
-
-Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
+ ## 10. Các truy vấn đo lỗi dữ liệu thô
+ 
+-Nằm trong `staging/pg_checks/`. Chạy từ file (mỗi lệnh quét toàn bảng nên mất vài phút):
+-
+-```powershell
+-Get-Content staging\pg_checks\02_profile_errors.sql | docker compose exec -T postgres psql -P pager=off -x -U taxi_user -d nyc_taxi_staging
+-Get-Content staging\pg_checks\03_profile_by_vendor.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+-Get-Content staging\pg_checks\04_profile_negative_fare.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+-```
++Nằm trong `staging/pg_checks/`. Mỗi file quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**.
++
++| File | Khảo sát |
++|---|---|
++| `02_profile_errors.sql` | Số dòng của từng loại lỗi trên toàn bảng |
++| `03_profile_by_vendor.sql` | Lỗi theo nhà cung cấp |
++| `04_profile_negative_fare.sql` | Giá âm theo loại thanh toán |
++| `05_profile_nulls.sql` | Số dòng NULL của từng cột, khoảng thời gian đón/trả |
++| `06_profile_categorical.sql` | Các giá trị của cột phân loại |
++| `07_profile_outliers.sql` | Giá trị cực đoan, phụ phí âm |
++| `08_profile_by_month.sql` | Lỗi theo từng tháng |
++| `09_profile_followup.sql` | Dòng đón khách ngoài kỳ theo file, đột biến ở tháng 11 |
++
++Lệnh chạy một file (thay `<tên file>`):
++
++```powershell
++Get-Content staging\pg_checks\<tên file> | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
++```
++
++Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo dạng dọc (mỗi chỉ số một dòng).
+ 
+ Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
 
 ## 11. Thông tin cho người dùng bảng Stage
 
@@ -180,6 +200,8 @@ Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ d
 - Giờ đón/trả khách giữ nguyên giờ địa phương New York như nguồn. `batch_id` và `load_datetime` theo giờ của container (UTC).
 - Khóa liên kết địa lý là `location_id` (không join theo tên Zone vì có tên trùng).
 - Nối với Zone Lookup: `pu_location_id`/`do_location_id` không có NULL và đều nằm trong 1–265.
+- Cột có NULL: `passenger_count`, `ratecode_id`, `store_and_fwd_flag`, `congestion_surcharge`, `airport_fee` (mỗi cột 15.703.126 dòng) và `cbd_congestion_fee` (41.169.720 dòng). Các cột còn lại không có NULL.
+- Các cột tiền và quãng đường giữ kiểu `double precision` đúng như nguồn (Stage là bản sao 1:1, không làm tròn). Nếu cần `DECIMAL`, ép kiểu ở tầng DDS trước khi cộng dồn.
 
 ## 12. Xử lý sự cố
 
@@ -205,7 +227,7 @@ data/
 staging/
   README.md            file này
   init_sql/            01_init_schemas.sql, 02_create_stage.sql
-  pg_checks/           inspect_parquet.py (đọc schema Parquet), 02/03/04 truy vấn đo lỗi dữ liệu thô
+  pg_checks/           inspect_parquet.py (đọc schema Parquet), 02–09 truy vấn đo lỗi dữ liệu thô
 mage/
   data_loaders/        load_zone_lookup.py
   data_exporters/      export_zone_lookup.py, load_trips_to_stage.py
