@@ -207,18 +207,20 @@ Hằng ngày: `docker compose up -d` để bật, `docker compose down` để t�
 
 ## 10. Các truy vấn đo lỗi dữ liệu thô
 
-Nằm trong `staging/pg_checks/`. Mỗi file quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**.
+Nằm trong `staging/pg_checks/`. Các file `02`–`09` và `11` quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**. File `10` chỉ quét một file nguồn nên nhanh hơn.
 
 | File | Khảo sát |
 |---|---|
-| `02_profile_errors.sql` | Số dòng của từng loại lỗi trên toàn bảng |
+| `02_profile_errors.sql` | Số dòng của từng loại lỗi trên toàn bảng; kèm truy vấn kiểm chứng 5 cột NULL có trùng đúng tập `payment_type = 0` (Flex Fare) hay không |
 | `03_profile_by_vendor.sql` | Lỗi theo nhà cung cấp |
-| `04_profile_negative_fare.sql` | Giá âm theo loại thanh toán |
+| `04_profile_negative_fare.sql` | Đối chiếu `fare_amount` âm và `total_amount` âm theo loại thanh toán |
 | `05_profile_nulls.sql` | Số dòng NULL của từng cột, khoảng thời gian đón/trả |
 | `06_profile_categorical.sql` | Các giá trị của cột phân loại |
-| `07_profile_outliers.sql` | Giá trị cực đoan, phụ phí âm |
-| `08_profile_by_month.sql` | Lỗi theo từng tháng |
-| `09_profile_followup.sql` | Dòng đón khách ngoài kỳ theo file, đột biến ở tháng 11 |
+| `07_profile_outliers.sql` | Giá trị cực đoan (quãng đường, tiền, vận tốc > 100 mph), các khoản phụ phí âm |
+| `08_profile_by_month.sql` | Lỗi theo từng file nguồn (từng tháng) |
+| `09_profile_followup.sql` | Các file có dòng đón ngoài kỳ 2024–2025; top 5 giờ có nhiều chuyến "trả trước đón" ở tháng 11/2024 và 11/2025 |
+| `10_profile_duplicates.sql` | Các nhóm dòng trùng hoàn toàn trong **một file nguồn** (cần truyền tên file, xem bên dưới) |
+| `11_profile_consistency.sql` | Tổng tiền không khớp tổng các khoản thành phần theo loại thanh toán; thống kê Zone Lookup (số dòng, mã nhỏ nhất/lớn nhất); tên Zone bị trùng ở nhiều mã |
 
 Lệnh chạy một file (thay `<tên file>`):
 
@@ -227,6 +229,12 @@ Get-Content staging\pg_checks\<tên file> | docker compose exec -T postgres psql
 ```
 
 Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo dạng dọc (mỗi chỉ số một dòng).
+
+File `10` cần truyền tên file nguồn bằng `-v f=...` (thay tên file muốn kiểm tra):
+
+```powershell
+Get-Content staging\pg_checks\10_profile_duplicates.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging -v f=yellow_tripdata_2024-01.parquet
+```
 
 Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
 
@@ -255,6 +263,7 @@ Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ d
 | Dán nhiều dòng vào PowerShell bị rớt dòng | Tạo file bằng VS Code (dán, Ctrl+S), chỉ dán lệnh ngắn vào terminal |
 | VS Code cảnh báo `Import "mage_ai..." could not be resolved` | Vô hại: thư viện `mage_ai` chỉ có trong container, code vẫn chạy bình thường |
 | Docker đứng hình, `vmmemWSL` ăn hết RAM | Đặt `memory=` trong `.wslconfig`, chạy `wsl --shutdown`, mở lại Docker Desktop; nạp từng năm (`year` = `2024` rồi `2025`) |
+| Chạy `10_profile_duplicates.sql` báo `syntax error at or near ":"` | Chưa truyền tên file. Thêm `-v f=<tên file>.parquet` vào lệnh `psql`, ví dụ `-v f=yellow_tripdata_2024-01.parquet` |
 | Hết dung lượng ổ đĩa khi nạp | Giải phóng ổ rồi chạy lại với `file_name = ALL`; các tháng đã xong được bỏ qua |
 | `git status` thấy `mage_data/`, `mage/.ssh_tunnel/`, `mage/.file_versions/` | Không commit; các thư mục này do Mage tự sinh |
 | `git status` thấy `metadata.yaml` của pipeline bị sửa | Do đổi biến trên giao diện Mage. Khôi phục: `git checkout -- mage/pipelines/ingest_trips_to_postgres/metadata.yaml` |
@@ -269,7 +278,7 @@ data/
 staging/
   README.md            file này
   init_sql/            01_init_schemas.sql, 02_create_stage.sql
-  pg_checks/           inspect_parquet.py (đọc schema Parquet), 02–09 truy vấn đo lỗi dữ liệu thô
+    pg_checks/           inspect_parquet.py (đọc schema Parquet), 02–11 truy vấn đo lỗi dữ liệu thô
 mage/
   data_loaders/        load_zone_lookup.py
   data_exporters/      export_zone_lookup.py, load_trips_to_stage.py
