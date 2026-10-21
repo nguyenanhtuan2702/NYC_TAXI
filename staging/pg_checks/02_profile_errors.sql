@@ -58,3 +58,71 @@ SELECT
   count(*) FILTER (WHERE payment_type IS NULL)                    AS payment_null
 
 FROM stage.stg_yellow_taxi_trips;   -- bảng staging
+
+
+-- Kiểm chứng 5 cột NULL có trùng đúng tập payment_type = 0
+
+-- KIEM TRA FLEX FARE VA 5 COT NULL
+
+SELECT
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+    ) AS flex_rows,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND passenger_count IS NULL
+    ) AS flex_pax_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND ratecode_id IS NULL
+    ) AS flex_ratecode_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND store_and_fwd_flag IS NULL
+    ) AS flex_store_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND congestion_surcharge IS NULL
+    ) AS flex_congestion_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND airport_fee IS NULL
+    ) AS flex_airport_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND passenger_count IS NULL
+          AND ratecode_id IS NULL
+          AND store_and_fwd_flag IS NULL
+          AND congestion_surcharge IS NULL
+          AND airport_fee IS NULL
+    ) AS flex_ca_5_cot_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type = 0
+          AND (
+              passenger_count IS NOT NULL
+              OR ratecode_id IS NOT NULL
+              OR store_and_fwd_flag IS NOT NULL
+              OR congestion_surcharge IS NOT NULL
+              OR airport_fee IS NOT NULL
+          )
+    ) AS flex_co_cot_khong_null,
+
+    COUNT(*) FILTER (
+        WHERE payment_type IS DISTINCT FROM 0
+          AND (
+              passenger_count IS NULL
+              OR ratecode_id IS NULL
+              OR store_and_fwd_flag IS NULL
+              OR congestion_surcharge IS NULL
+              OR airport_fee IS NULL
+          )
+    ) AS khong_flex_nhung_co_null
+
+FROM stage.stg_yellow_taxi_trips;

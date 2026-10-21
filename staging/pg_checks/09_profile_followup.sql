@@ -1,15 +1,7 @@
 -- TRUY VẤN KIỂM TRA TRÊN BẢNG STAGING
 
--- TRUY VẤN 1: giờ đón sớm nhất + số dòng có phí cải thiện âm 
-SELECT
-  -- Giờ đón sớm nhất trong toàn bảng
-  min(tpep_pickup_datetime) AS pickup_min,
-  -- Đếm dòng có phí cải thiện dịch vụ (improvement_surcharge) âm
-  count(*) FILTER (WHERE improvement_surcharge < 0) AS improvement_am
-FROM stage.stg_yellow_taxi_trips;   -- bảng staging
 
-
--- TRUY VẤN 2: các file nguồn có dòng đón ngoài kỳ 2024-2025
+-- TRUY VẤN: các file nguồn có dòng đón ngoài kỳ 2024-2025
 -- Với mỗi file, đếm số dòng có giờ đón trước 01/01/2024 hoặc từ 01/01/2026 trở đi
 SELECT
   source_file_name,         -- tên file nguồn
