@@ -160,37 +160,30 @@ Phải trả về `(0 rows)`.
 
 Hằng ngày: `docker compose up -d` để bật, `docker compose down` để tắt (**không** thêm `-v`).
 
- ## 10. Các truy vấn đo lỗi dữ liệu thô
- 
--Nằm trong `staging/pg_checks/`. Chạy từ file (mỗi lệnh quét toàn bảng nên mất vài phút):
--
--```powershell
--Get-Content staging\pg_checks\02_profile_errors.sql | docker compose exec -T postgres psql -P pager=off -x -U taxi_user -d nyc_taxi_staging
--Get-Content staging\pg_checks\03_profile_by_vendor.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
--Get-Content staging\pg_checks\04_profile_negative_fare.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
--```
-+Nằm trong `staging/pg_checks/`. Mỗi file quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**.
-+
-+| File | Khảo sát |
-+|---|---|
-+| `02_profile_errors.sql` | Số dòng của từng loại lỗi trên toàn bảng |
-+| `03_profile_by_vendor.sql` | Lỗi theo nhà cung cấp |
-+| `04_profile_negative_fare.sql` | Giá âm theo loại thanh toán |
-+| `05_profile_nulls.sql` | Số dòng NULL của từng cột, khoảng thời gian đón/trả |
-+| `06_profile_categorical.sql` | Các giá trị của cột phân loại |
-+| `07_profile_outliers.sql` | Giá trị cực đoan, phụ phí âm |
-+| `08_profile_by_month.sql` | Lỗi theo từng tháng |
-+| `09_profile_followup.sql` | Dòng đón khách ngoài kỳ theo file, đột biến ở tháng 11 |
-+
-+Lệnh chạy một file (thay `<tên file>`):
-+
-+```powershell
-+Get-Content staging\pg_checks\<tên file> | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
-+```
-+
-+Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo dạng dọc (mỗi chỉ số một dòng).
- 
- Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
+## 10. Các truy vấn đo lỗi dữ liệu thô
+
+Nằm trong `staging/pg_checks/`. Mỗi file quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**.
+
+| File | Khảo sát |
+|---|---|
+| `02_profile_errors.sql` | Số dòng của từng loại lỗi trên toàn bảng |
+| `03_profile_by_vendor.sql` | Lỗi theo nhà cung cấp |
+| `04_profile_negative_fare.sql` | Giá âm theo loại thanh toán |
+| `05_profile_nulls.sql` | Số dòng NULL của từng cột, khoảng thời gian đón/trả |
+| `06_profile_categorical.sql` | Các giá trị của cột phân loại |
+| `07_profile_outliers.sql` | Giá trị cực đoan, phụ phí âm |
+| `08_profile_by_month.sql` | Lỗi theo từng tháng |
+| `09_profile_followup.sql` | Dòng đón khách ngoài kỳ theo file, đột biến ở tháng 11 |
+
+Lệnh chạy một file (thay `<tên file>`):
+
+```powershell
+Get-Content staging\pg_checks\<tên file> | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+```
+
+Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo dạng dọc (mỗi chỉ số một dòng).
+
+Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
 
 ## 11. Thông tin cho người dùng bảng Stage
 
