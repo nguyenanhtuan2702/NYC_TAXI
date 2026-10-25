@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: nyc-postgres
+    restart: unless-stopped
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c work_mem=32MB
+      -c maintenance_work_mem=256MB
+      -c max_wal_size=4GB
+      -c checkpoint_timeout=15min
+      -c synchronous_commit=off
+    deploy:
+      resources:
+        limits:
+          memory: 3500M
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./staging/init_sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mage:
+    build: .
+    container_name: nyc-mage
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2500M
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      USER_CODE_PATH: /home/src/mage
+    ports:
+      - "6789:6789"
+    volumes:
+      - .:/home/src
+    command: /app/run_app.sh mage start mage
+
+volumes:
+  pgdata:

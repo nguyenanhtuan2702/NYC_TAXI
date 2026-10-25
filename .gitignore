@@ -1,0 +1,26 @@
+﻿# Data nặng
+data/raw/*
+!data/raw/.gitkeep
+*.parquet
+!data/sample/*.parquet
+*.duckdb
+warehouse/*
+!warehouse/.gitkeep
+
+# Môi trường
+.env
+pgdata/
+
+# Mage / dbt / Python
+.mage_data/
+logs/
+target/
+dbt_packages/
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.DS_Store
+mage_data/
+mage/.ssh_tunnel/
+mage/.file_versions/
