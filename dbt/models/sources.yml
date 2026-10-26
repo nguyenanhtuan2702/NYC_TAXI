@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: stage
+    schema: stage
+    tables:
+      - name: stg_yellow_taxi_trips
+      - name: stg_taxi_zone_lookup
+
+  - name: dds
+    schema: dds
+    tables:
+      - name: dimdate
+      - name: dimtime
+      - name: dimlocation
+      - name: dimvendor
+      - name: dimpaymenttype
+      - name: dimratecode
+      - name: dimpassengergroup
+      - name: dimdistancegroup
+      - name: facttaxitrip
