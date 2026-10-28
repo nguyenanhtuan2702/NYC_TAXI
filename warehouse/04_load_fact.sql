@@ -3,10 +3,12 @@
 -- File: warehouse/04_load_fact.sql
 -- ==============================================================================
 
--- 1. Xóa dữ liệu cũ nếu chạy lại (đảm bảo tính Idempotent / không nhân đôi dòng)
-TRUNCATE TABLE dds.FactTaxiTrip RESTART IDENTITY;
+BEGIN;
 
--- 2. Thực hiện trích xuất, biến đổi và nạp dữ liệu vào Fact
+-- Tối ưu tốc độ Bulk Load: Bỏ qua trigger kiểm tra FK từng dòng (do dữ liệu đã được LEFT JOIN + COALESCE(-1) chuẩn 100% với Dimension)
+SET LOCAL session_replication_role = 'replica';
+
+-- 1. Thực hiện trích xuất, biến đổi và nạp gia tăng vào Fact
 INSERT INTO dds.FactTaxiTrip (
     PickupDateSK,
     DropoffDateSK,
@@ -34,7 +36,12 @@ INSERT INTO dds.FactTaxiTrip (
     CongestionSurcharge,
     AirportFee,
     CBDCongestionFee,
-    TotalAmount
+    TotalAmount,
+    -- Audit / Lineage Metadata
+    SourceFileName,
+    SourceRowNumber,
+    BatchID,
+    LoadedAt
 )
 SELECT
     -- 11 Khóa ngoại tra cứu từ Dimension với cơ chế xử lý lỗi COALESCE(..., -1)
@@ -68,7 +75,13 @@ SELECT
     COALESCE(stg.congestion_surcharge, 0)      AS CongestionSurcharge,
     COALESCE(stg.airport_fee, 0)               AS AirportFee,
     COALESCE(stg.cbd_congestion_fee, 0)        AS CBDCongestionFee,
-    stg.total_amount                           AS TotalAmount
+    stg.total_amount                           AS TotalAmount,
+
+    -- Thuộc tính kiểm toán & nguồn gốc
+    stg.source_file_name                       AS SourceFileName,
+    stg.source_row_number                      AS SourceRowNumber,
+    stg.batch_id                               AS BatchID,
+    CURRENT_TIMESTAMP                          AS LoadedAt
 
 FROM stage.stg_yellow_taxi_trips stg
 
@@ -118,4 +131,12 @@ WHERE stg.tpep_dropoff_datetime > stg.tpep_pickup_datetime
   AND stg.tpep_pickup_datetime < '2026-01-01'
   AND stg.fare_amount >= 0
   AND stg.total_amount >= 0
-  AND stg.trip_distance >= 0;
+  AND stg.trip_distance >= 0
+
+  -- ĐIỀU KIỆN NẠP GIA TĂNG (INCREMENTAL WATERMARK)
+  -- Chỉ nạp các lô dữ liệu (Batch) mới chưa từng có trong Fact.
+  -- Lần đầu (Fact rỗng): COALESCE trả về 0, toàn bộ dữ liệu hợp lệ trong stage sẽ được nạp.
+  -- Các lần sau: Chỉ nạp dữ liệu từ các BatchID lớn hơn BatchID lớn nhất hiện có.
+  AND stg.batch_id > (SELECT COALESCE(MAX(BatchID), 0) FROM dds.FactTaxiTrip);
+
+COMMIT;

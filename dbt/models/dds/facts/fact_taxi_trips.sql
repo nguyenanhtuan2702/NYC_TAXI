@@ -1,6 +1,6 @@
 {{
     config(
-        materialized='table',
+        materialized='incremental',
         schema='dds',
         alias='facttaxitrip'
     )
@@ -35,7 +35,12 @@ SELECT
     COALESCE(stg.congestion_surcharge, 0)      AS congestionsurcharge,
     COALESCE(stg.airport_fee, 0)               AS airportfee,
     COALESCE(stg.cbd_congestion_fee, 0)        AS cbdcongestionfee,
-    stg.total_amount                           AS totalamount
+    stg.total_amount                           AS totalamount,
+
+    stg.source_file_name                       AS sourcefilename,
+    stg.source_row_number                      AS sourcerownumber,
+    stg.batch_id                               AS batchid,
+    CURRENT_TIMESTAMP                          AS loadedat
 
 FROM {{ source('stage', 'stg_yellow_taxi_trips') }} stg
 
@@ -77,3 +82,6 @@ WHERE stg.tpep_dropoff_datetime > stg.tpep_pickup_datetime
   AND stg.fare_amount >= 0
   AND stg.total_amount >= 0
   AND stg.trip_distance >= 0
+{% if is_incremental() %}
+  AND stg.batch_id > (SELECT COALESCE(MAX(batchid), 0) FROM {{ this }})
+{% endif %}

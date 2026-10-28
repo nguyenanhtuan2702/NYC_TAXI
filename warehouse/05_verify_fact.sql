@@ -71,3 +71,19 @@ SELECT
     ROUND(AVG(TotalAmount)::numeric, 2)             AS avg_total,
     ROUND(MAX(TotalAmount)::numeric, 2)             AS max_total
 FROM dds.FactTaxiTrip;
+
+
+\echo '======================================================'
+\echo '5. KIỂM TRA PHÂN PHỐI NẠP GIA TĂNG (THEO FILE & BATCH)'
+\echo '======================================================'
+
+SELECT 
+    SourceFileName,
+    BatchID,
+    count(*) AS trip_count,
+    MIN(LoadedAt) AS first_loaded_at,
+    MAX(LoadedAt) AS last_loaded_at
+FROM dds.FactTaxiTrip
+GROUP BY SourceFileName, BatchID
+ORDER BY BatchID;
+

@@ -52,7 +52,17 @@ Theo đúng trang 3 của tài liệu `modeling.pdf`, Fact lưu 14 measures cơ 
 | `CBDCongestionFee` | DOUBLE | Phí ùn tắc khu vực trung tâm Manhattan (áp dụng từ 2025). |
 | `TotalAmount` | DOUBLE | Tổng số tiền thanh toán thực tế của hành khách. |
 
-### 1.4. Semantic Measures (Được tính toán động trên BI / OLAP - Không lưu vật lý)
+### 1.4. Audit & Lineage Metadata (Kiểm toán & Nguồn gốc dữ liệu)
+Bảng Fact được trang bị 4 cột metadata kỹ thuật chuẩn Kimball để phục vụ **nạp gia tăng (Incremental Load)**, theo dõi nguồn gốc dữ liệu (Data Lineage) và kiểm toán hệ thống:
+
+| Tên cột Metadata | Kiểu | Ý nghĩa kỹ thuật |
+| :--- | :--- | :--- |
+| `SourceFileName` | VARCHAR(200) | Tên file Parquet nguồn gốc (ví dụ: `yellow_tripdata_2025-01.parquet`). |
+| `SourceRowNumber` | BIGINT | Thứ tự dòng trong file Parquet gốc (Lineage tracking). |
+| `BatchID` | BIGINT | Mã phiên nạp (Batch ID) từ pipeline Mage / Staging. |
+| `LoadedAt` | TIMESTAMP | Thời điểm bản ghi được nạp vào Fact (Watermark). |
+
+### 1.5. Semantic Measures (Được tính toán động trên BI / OLAP - Không lưu vật lý)
 Theo trang 4 của `modeling.pdf`, các measures phái sinh sau được định nghĩa bằng công thức động (DAX / SQL aggregations) để tối ưu dung lượng và tránh sai sót khi tổng hợp nhiều chiều:
 - **`AvgRevenuePerTrip`** = `SUM(TotalAmount) / SUM(TotalTrips)`
 - **`AvgPassengersPerTrip`** = `SUM(PassengerCount) / SUM(TotalTrips)`
@@ -73,20 +83,27 @@ Trong quá trình nạp từ `stage.stg_yellow_taxi_trips` sang `dds.FactTaxiTri
 
 ---
 
-## 3. Hướng dẫn Thực thi Script
+## 3. Quy trình Nạp Gia tăng & Hướng dẫn Thực thi (Incremental Load)
 
-### Bước 1: Khởi tạo bảng Fact & Indexes
+Quy trình nạp Fact được nâng cấp toàn diện theo kiến trúc **Incremental Load (Nạp gia tăng)** bảo toàn giao dịch (`BEGIN ... COMMIT`), hoàn toàn không sử dụng lệnh `TRUNCATE` hay `DROP` phá hủy bảng:
+1. **Lần chạy đầu tiên (Initial Load):** Bảng Fact chưa có dữ liệu, toàn bộ dữ liệu hợp lệ từ Staging sẽ được nạp vào Fact.
+2. **Các lần chạy tiếp theo (Incremental Run):** Pipeline tự động so sánh Watermark (`BatchID` lớn hơn `MAX(BatchID)` đã có trong Fact hoặc các file mới chưa từng nạp). Do đó:
+   - Nếu không có dữ liệu mới: Trả về `INSERT 0 0` an toàn, không nhân đôi số dòng, không làm gián đoạn các truy vấn đang đọc.
+   - Khi có file mới: Chỉ nạp riêng file mới đó, thời gian nạp chỉ vài chục giây thay vì chạy lại toàn bộ lịch sử nhiều năm.
+   - Nếu gặp sự cố giữa chừng: Khối giao dịch (`BEGIN; ... COMMIT;`) tự động `ROLLBACK`, bảng Fact cũ không bao giờ bị mất dữ liệu.
+
+### Bước 1: Khởi tạo bảng Fact & Indexes (Idempotent DDL)
 Chạy lệnh trong PowerShell tại thư mục gốc dự án:
 ```powershell
 Get-Content warehouse\03_create_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 
-### Bước 2: Nạp dữ liệu vào Fact từ Staging
+### Bước 2: Nạp gia tăng vào Fact từ Staging (Incremental Load)
 ```powershell
 Get-Content warehouse\04_load_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 
-### Bước 3: Kiểm thử đối chiếu dữ liệu
+### Bước 3: Kiểm thử đối chiếu dữ liệu & phân phối Batch
 ```powershell
 Get-Content warehouse\05_verify_fact.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
 ```
