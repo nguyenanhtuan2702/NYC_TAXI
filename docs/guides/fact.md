@@ -1,5 +1,8 @@
 # NYC TAXI - HƯỚNG DẪN TRIỂN KHAI & BÀN GIAO TẦNG FACT (DDS)
 
+> **Cập nhật 16/11/2026:** cách chạy chính hiện tại là **dbt** (`dbt/models/dds/`, lệnh `.\tasks.ps1 dbt-build`). Các lệnh `psql` trong tài liệu này dùng bản SQL thủ công ở `sql/warehouse/`, chỉ để tham khảo hoặc đối chiếu. **Không trộn hai cách** trên cùng một database: dbt build lại bảng Dimension mỗi lần chạy, nên khóa ngoại do `03_create_fact.sql` tạo sẽ bị xóa theo. Ngoài ra, SK trong dbt được sinh ổn định từ khóa tự nhiên (vd `DateSK = YYYYMMDD`), khác với `SERIAL` trong bản SQL.
+
+
 Tài liệu này mô tả chi tiết thiết kế, quy tắc làm sạch dữ liệu, quy trình ETL và kịch bản kiểm thử nghiệm thu cho bảng dữ kiện trung tâm **`dds.FactTaxiTrip`** thuộc mô hình kho dữ liệu NYC Yellow Taxi (Star Schema).
 
 - **Người phụ trách:** Thịnh (Người 3 - Tầng Fact)
@@ -95,17 +98,17 @@ Quy trình nạp Fact được nâng cấp toàn diện theo kiến trúc **Incr
 ### Bước 1: Khởi tạo bảng Fact & Indexes (Idempotent DDL)
 Chạy lệnh trong PowerShell tại thư mục gốc dự án:
 ```powershell
-Get-Content warehouse\03_create_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\03_create_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 
 ### Bước 2: Nạp gia tăng vào Fact từ Staging (Incremental Load)
 ```powershell
-Get-Content warehouse\04_load_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\04_load_fact.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 
 ### Bước 3: Kiểm thử đối chiếu dữ liệu & phân phối Batch
 ```powershell
-Get-Content warehouse\05_verify_fact.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\05_verify_fact.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
 ```
 
 ---

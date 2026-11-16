@@ -29,10 +29,10 @@ REQUIRED_FILES = [
     "mage/data_exporters/load_trips_to_stage.py",
     "mage/data_loaders/load_zone_lookup.py",
     "mage/data_exporters/export_zone_lookup.py",
-    "staging/init_sql/02_create_stage.sql",
-    "warehouse/01_create_dimensions.sql",
-    "warehouse/02_load_dimensions.sql",
-    "staging/pg_checks/02_profile_errors.sql",
+    "sql/ddl/02_create_stage.sql",
+    "sql/warehouse/01_create_dimensions.sql",
+    "sql/warehouse/02_load_dimensions.sql",
+    "sql/profiling/02_profile_errors.sql",
 ]
 REQUIRED_ENV = ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST", "POSTGRES_PORT"]
 STAGE_TABLES = [
@@ -222,8 +222,8 @@ def run_static_preflight(r: Reporter) -> None:
             r.add("PF-COMPOSE-01", "Docker Compose configuration parses", "Preflight", "BLOCKED",
                   "docker compose config --quiet succeeds", note=type(exc).__name__)
 
-    dim_ddl = (ROOT / "warehouse/01_create_dimensions.sql").read_text(encoding="utf-8").upper()
-    dim_load = (ROOT / "warehouse/02_load_dimensions.sql").read_text(encoding="utf-8").upper()
+    dim_ddl = (ROOT / "sql/warehouse/01_create_dimensions.sql").read_text(encoding="utf-8").upper()
+    dim_load = (ROOT / "sql/warehouse/02_load_dimensions.sql").read_text(encoding="utf-8").upper()
     has_destructive_ddl = bool(re.search(r"\bDROP\s+TABLE\b", dim_ddl))
     has_writes = bool(re.search(r"\b(INSERT|UPDATE|DELETE|TRUNCATE)\b", dim_load))
     r.add("PF-SAFETY-01", "Write-impact scripts identified and excluded", "Preflight", "PASS",

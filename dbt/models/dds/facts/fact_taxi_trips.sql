@@ -44,36 +44,36 @@ SELECT
 
 FROM {{ source('stage', 'stg_yellow_taxi_trips') }} stg
 
-LEFT JOIN {{ source('dds', 'dimdate') }} d_pu 
+LEFT JOIN {{ ref('dim_date') }} d_pu 
     ON d_pu.fulldate = stg.tpep_pickup_datetime::date
-LEFT JOIN {{ source('dds', 'dimdate') }} d_do 
+LEFT JOIN {{ ref('dim_date') }} d_do 
     ON d_do.fulldate = stg.tpep_dropoff_datetime::date
 
-LEFT JOIN {{ source('dds', 'dimtime') }} t_pu 
+LEFT JOIN {{ ref('dim_time') }} t_pu 
     ON t_pu.hour = EXTRACT(HOUR FROM stg.tpep_pickup_datetime)::int 
    AND t_pu.minute = EXTRACT(MINUTE FROM stg.tpep_pickup_datetime)::int
-LEFT JOIN {{ source('dds', 'dimtime') }} t_do 
+LEFT JOIN {{ ref('dim_time') }} t_do 
     ON t_do.hour = EXTRACT(HOUR FROM stg.tpep_dropoff_datetime)::int 
    AND t_do.minute = EXTRACT(MINUTE FROM stg.tpep_dropoff_datetime)::int
 
-LEFT JOIN {{ source('dds', 'dimlocation') }} l_pu 
+LEFT JOIN {{ ref('dim_location') }} l_pu 
     ON l_pu.locationid = stg.pu_location_id
-LEFT JOIN {{ source('dds', 'dimlocation') }} l_do 
+LEFT JOIN {{ ref('dim_location') }} l_do 
     ON l_do.locationid = stg.do_location_id
 
-LEFT JOIN {{ source('dds', 'dimvendor') }} v 
+LEFT JOIN {{ ref('dim_vendor') }} v 
     ON v.vendorid = stg.vendor_id
 
-LEFT JOIN {{ source('dds', 'dimpaymenttype') }} p 
+LEFT JOIN {{ ref('dim_payment_type') }} p 
     ON p.paymenttypeid = stg.payment_type
 
-LEFT JOIN {{ source('dds', 'dimratecode') }} r 
+LEFT JOIN {{ ref('dim_rate_code') }} r 
     ON r.ratecodeid = COALESCE(stg.ratecode_id, 99)
 
-LEFT JOIN {{ source('dds', 'dimpassengergroup') }} pg 
+LEFT JOIN {{ ref('dim_passenger_group') }} pg 
     ON stg.passenger_count BETWEEN pg.minpassengers AND pg.maxpassengers
 
-LEFT JOIN {{ source('dds', 'dimdistancegroup') }} dg 
+LEFT JOIN {{ ref('dim_distance_group') }} dg 
     ON stg.trip_distance BETWEEN dg.mindistance AND dg.maxdistance
 
 WHERE stg.tpep_dropoff_datetime > stg.tpep_pickup_datetime

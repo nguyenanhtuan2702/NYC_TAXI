@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Ngày 2024-2025. DateSK = YYYYMMDD; -1 = Unknown."
+    columns:
+      - name: datesk
+        data_tests: [unique, not_null]
+      - name: fulldate
+        data_tests: [unique, not_null]
+
+  - name: dim_time
+    description: "Phút trong ngày. TimeSK = hour*100 + minute; -1 = Unknown."
+    columns:
+      - name: timesk
+        data_tests: [unique, not_null]
+
+  - name: dim_location
+    description: "Taxi Zone. LocationSK = LocationID; -1 = Unknown."
+    columns:
+      - name: locationsk
+        data_tests: [unique, not_null]
+      - name: locationid
+        data_tests: [unique, not_null]
+
+  - name: dim_vendor
+    description: "Nhà cung cấp. VendorSK = VendorID; mã ngoài 1/2 gắn nhãn Unknown."
+    columns:
+      - name: vendorsk
+        data_tests: [unique, not_null]
+      - name: vendorid
+        data_tests: [unique, not_null]
+
+  - name: dim_payment_type
+    description: "Hình thức thanh toán. PaymentTypeSK = PaymentTypeID; mã 0 gắn nhãn Unknown."
+    columns:
+      - name: paymenttypesk
+        data_tests: [unique, not_null]
+      - name: paymenttypeid
+        data_tests: [unique, not_null]
+
+  - name: dim_rate_code
+    description: "Mã giá cước. NULL được quy về 99 (Unknown). RateCodeSK = RateCodeID."
+    columns:
+      - name: ratecodesk
+        data_tests: [unique, not_null]
+      - name: ratecodeid
+        data_tests: [unique, not_null]
+
+  - name: dim_passenger_group
+    description: "Nhóm số hành khách (tĩnh)."
+    columns:
+      - name: passengergroupsk
+        data_tests: [unique, not_null]
+      - name: passengergroupcode
+        data_tests: [unique, not_null]
+
+  - name: dim_distance_group
+    description: "Nhóm quãng đường (tĩnh)."
+    columns:
+      - name: distancegroupsk
+        data_tests: [unique, not_null]
+      - name: distancegroupcode
+        data_tests: [unique, not_null]

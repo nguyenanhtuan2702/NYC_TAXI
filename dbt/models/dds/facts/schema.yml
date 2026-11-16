@@ -8,50 +8,57 @@ models:
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimdate')
-              field: datesk
+              arguments:
+                to: ref('dim_date')
+                field: datesk
 
       - name: dropoffdatesk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimdate')
-              field: datesk
+              arguments:
+                to: ref('dim_date')
+                field: datesk
 
       - name: pickuplocationsk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimlocation')
-              field: locationsk
+              arguments:
+                to: ref('dim_location')
+                field: locationsk
 
       - name: dropofflocationsk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimlocation')
-              field: locationsk
+              arguments:
+                to: ref('dim_location')
+                field: locationsk
 
       - name: vendorsk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimvendor')
-              field: vendorsk
+              arguments:
+                to: ref('dim_vendor')
+                field: vendorsk
 
       - name: paymenttypesk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimpaymenttype')
-              field: paymenttypesk
+              arguments:
+                to: ref('dim_payment_type')
+                field: paymenttypesk
 
       - name: ratecodesk
         data_tests:
           - not_null
           - relationships:
-              to: source('dds', 'dimratecode')
-              field: ratecodesk
+              arguments:
+                to: ref('dim_rate_code')
+                field: ratecodesk
 
       - name: totaltrips
         data_tests:

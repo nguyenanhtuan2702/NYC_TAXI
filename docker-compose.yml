@@ -1,35 +1,6 @@
-services:
-  postgres:
-    image: postgres:17
-    container_name: nyc-postgres
-    restart: unless-stopped
-    command: >
-      postgres
-      -c shared_buffers=512MB
-      -c work_mem=32MB
-      -c maintenance_work_mem=256MB
-      -c max_wal_size=4GB
-      -c checkpoint_timeout=15min
-      -c synchronous_commit=off
-    deploy:
-      resources:
-        limits:
-          memory: 3500M
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./staging/init_sql:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+name: nyc-taxi
 
+services:
   mage:
     build: .
     container_name: nyc-mage
@@ -37,19 +8,21 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2500M
-    depends_on:
-      postgres:
-        condition: service_healthy
-    env_file:
-      - .env
+          # DuckDB chạy trong tiến trình Mage/dbt, nên RAM trước đây chia cho Postgres
+          # được dồn vào đây. Giữ DUCKDB_MEMORY_LIMIT thấp hơn giới hạn này.
+          memory: 6g
+    # Giá trị lấy từ .env (nếu có), nếu không dùng mặc định sau dấu :-
     environment:
       USER_CODE_PATH: /home/src/mage
+      DUCKDB_PATH: ${DUCKDB_PATH:-/home/src/data/warehouse/nyc_taxi.duckdb}
+      DUCKDB_MEMORY_LIMIT: ${DUCKDB_MEMORY_LIMIT:-4GB}
+      DUCKDB_THREADS: ${DUCKDB_THREADS:-4}
+      DUCKDB_TEMP_DIR: ${DUCKDB_TEMP_DIR:-/home/src/data/warehouse/tmp}
+      RAW_DATA_DIR: ${RAW_DATA_DIR:-/home/src/data/raw}
     ports:
       - "6789:6789"
     volumes:
+      # Bind mount cả repo: Parquet (data/raw), file DuckDB (data/warehouse) và code
+      # đều nằm trên máy host, nên Power BI / DBeaver trên Windows mở được trực tiếp.
       - .:/home/src
     command: /app/run_app.sh mage start mage
-
-volumes:
-  pgdata:

@@ -1,6 +1,8 @@
 # NYC Yellow Taxi Data Warehouse
 
-Dự án xây dựng quy trình xử lý và phân tích dữ liệu **NYC Yellow Taxi Trip Records** cho giai đoạn 2024–2025. Phạm vi hiện thực trong repo tập trung vào nạp dữ liệu nguồn vào PostgreSQL Staging bằng Mage.ai. Các thư mục dbt, warehouse, Power BI và pipeline ELT tổng thể hiện mới là khung để phát triển tiếp.
+> **Đang chuyển từ PostgreSQL sang DuckDB (từ 16/11/2026).** Bước 1 (Docker Compose) đã xong: không còn service PostgreSQL. Các hướng dẫn PostgreSQL bên dưới sẽ được viết lại theo từng bước; tiến độ xem [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md#8-chuyển-sang-duckdb).
+
+Dự án xây dựng quy trình xử lý và phân tích dữ liệu **NYC Yellow Taxi Trip Records** cho giai đoạn 2024–2025. Repo hiện có: nạp dữ liệu nguồn vào PostgreSQL Staging bằng Mage.ai, và tầng DDS (8 Dimension + Fact) build bằng dbt. OLAP mart, Power BI và pipeline ELT end-to-end đang phát triển tiếp. Tình trạng chi tiết: [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## Trạng thái dự án
 
@@ -9,9 +11,12 @@ Dự án xây dựng quy trình xử lý và phân tích dữ liệu **NYC Yello
 | PostgreSQL Staging | Có DDL tạo schema, bảng chuyến đi, bảng Zone Lookup và bảng log ETL |
 | Nạp dữ liệu bằng Mage.ai | Có pipeline nạp Taxi Zone Lookup và Yellow Taxi Parquet; pipeline chuyến đi hỗ trợ tải file, retry, nạp theo batch và chạy lại |
 | Docker Compose | Có cấu hình chạy PostgreSQL và Mage.ai |
-| Dimension DDS | Có SQL tạo/nạp 8 Dimension trong `warehouse/`; chưa có Fact |
-| dbt / OLAP | Có cấu trúc thư mục, chưa có `dbt_project.yml`, dbt model/package hoặc OLAP mart |
-| End-to-end ELT | Chưa có pipeline triển khai trong `mage/pipelines/02_end_to_end_elt_pipeline/` |
+| Dimension DDS | 8 model dbt trong `dbt/models/dds/dimensions/` (bản SQL thủ công tham khảo ở `sql/warehouse/`) |
+| Fact DDS | Model dbt incremental `dbt/models/dds/facts/fact_taxi_trips.sql` |
+| dbt | Có `dbt_project.yml`, `profiles.yml`, sources, test schema; `dbt parse` chạy được. Chưa chạy trên dữ liệu đầy đủ |
+| OLAP | Chưa có mart trong `dbt/models/olap_marts/` |
+| End-to-end ELT | Chưa có pipeline Mage gọi ingestion → dbt |
+| CI | GitHub Actions: kiểm tra cú pháp Python, `docker compose config`, `dbt parse` |
 | Power BI | Có thư mục khung; chưa có báo cáo `.pbip` hoặc dashboard hoàn chỉnh |
 
 > README này mô tả trạng thái của repo hiện tại. Các mô hình Dimension, Fact, truy vấn OLAP và dashboard là mục tiêu phát triển tiếp, không phải chức năng đã triển khai đầy đủ.
@@ -32,7 +37,10 @@ PostgreSQL: stage / control
         └── control.etl_control
         │
         ▼
-dbt DDS / OLAP / Power BI (kế hoạch phát triển)
+dbt: dds.dim* (8 Dimension) → dds.facttaxitrip
+        │
+        ▼
+OLAP mart / Power BI (kế hoạch phát triển)
 ```
 
 | Thành phần | Công nghệ | Vai trò |
@@ -41,56 +49,62 @@ dbt DDS / OLAP / Power BI (kế hoạch phát triển)
 | Dữ liệu tham chiếu | CSV, ZIP | Taxi Zone Lookup và ranh giới Taxi Zone |
 | Orchestration / ingestion | Mage.ai, Python, PyArrow | Đọc, tải và nạp dữ liệu vào PostgreSQL |
 | Staging / control | PostgreSQL | Lưu dữ liệu nguồn và lịch sử các lần nạp |
-| Transformation / analytics | dbt, PostgreSQL | Dự kiến xây dựng DDS, Dimension, Fact và các mart OLAP |
+| Transformation / analytics | dbt, PostgreSQL | Build Dimension và Fact (DDS); dự kiến thêm mart OLAP |
 | Visualization | Power BI | Dự kiến xây dựng dashboard và bản đồ |
 
 ## Cấu trúc repository
 
 ```text
-NYC_TAXI/
+NYC_TAXI_DataPipeline/
+├── .github/workflows/ci.yml         # CI: cú pháp Python, compose config, dbt parse
 ├── .env.example
-├── Dockerfile
+├── Dockerfile                       # Image Mage + requirements.txt
 ├── docker-compose.yml
+├── requirements.txt                 # gói thêm cho Mage (duckdb)
+├── requirements-dbt.txt             # dbt, cài trong venv riêng /opt/dbt
+├── tasks.ps1                        # Lệnh thường dùng: .\tasks.ps1 help
 ├── README.md
 ├── data/
 │   ├── download_raw.ps1
 │   ├── raw/                         # File tải về, không commit
 │   ├── reference/                   # Taxi Zone Lookup và ranh giới khu vực
 │   └── sample/                      # Dữ liệu mẫu (nếu có)
-├── dbt/                             # Khung thư mục; chưa có cấu hình dự án dbt
+├── dbt/                             # Tầng transform chính
+│   ├── dbt_project.yml, profiles.yml
 │   ├── macros/
 │   ├── models/
+│   │   ├── sources.yml              # stage.stg_yellow_taxi_trips, stage.stg_taxi_zone_lookup
 │   │   ├── staging/
-│   │   ├── dds/
+│   │   ├── dds/{dimensions,facts}/
 │   │   └── olap_marts/
 │   ├── seeds/
 │   └── tests/
 ├── docs/
+│   ├── PROJECT_STATUS.md            # Tình trạng dự án, cập nhật theo mỗi thay đổi
+│   ├── guides/                      # staging, dimension, fact, testing
 │   ├── 01_data_modeling/
-│   ├── 02_test_plans_and_logs/
+│   ├── 02_test_plans_and_logs/      # test plan + một lần chạy mẫu (log mới không commit)
 │   └── 03_reports/
-├── mage/
+├── mage/                            # Ingestion / orchestration
 │   ├── data_exporters/
 │   ├── data_loaders/
-│   ├── pipelines/
+│   ├── pipelines/                   # ingest_zone_lookup, ingest_trips_to_postgres
 │   ├── transformers/
 │   ├── custom/
 │   └── io_config.yaml
-├── mage_data/                       # Dữ liệu Mage sinh ra khi chạy
 ├── powerbi/
-│   ├── dax/
-│   └── map_shapes/
-├── tests/                           # Runner QA chỉ đọc cho Stage và Dimension
-├── staging/
-│   ├── README.md                    # Hướng dẫn chi tiết chạy Staging
-│   ├── init_sql/                    # DDL khởi tạo schema và bảng
-│   └── pg_checks/                   # SQL/Python kiểm tra dữ liệu nguồn
-└── warehouse/                       # SQL tạo/nạp Dimension
+├── sql/
+│   ├── ddl/                         # DDL Staging, Docker tự chạy khi tạo volume lần đầu
+│   ├── profiling/                   # SQL/Python kiểm tra dữ liệu nguồn
+│   └── warehouse/                   # SQL thủ công Dimension/Fact (tham khảo, đối chiếu)
+└── tests/                           # Runner QA chỉ đọc
 ```
 
 Các file hướng dẫn chi tiết:
 
-- [Hướng dẫn chạy Staging](staging/README.md)
+- [Hướng dẫn chạy Staging](docs/guides/staging.md)
+- [Dimension](docs/guides/dimension.md), [Fact](docs/guides/fact.md)
+- [Runner kiểm thử](docs/guides/testing.md)
 
 ## Yêu cầu
 
@@ -99,7 +113,7 @@ Các file hướng dẫn chi tiết:
 - PowerShell trên Windows (các lệnh trong hướng dẫn chạy Staging sử dụng PowerShell)
 - Kết nối Internet khi cần tải Parquet từ nguồn
 - Đủ dung lượng cho dữ liệu và Docker. Theo hướng dẫn Staging, toàn bộ dữ liệu Parquet khoảng 1,5 GB và bảng staging có thể chiếm khoảng 20 GB sau khi nạp đủ.
-- Nên có RAM từ 12 GB để chạy cấu hình Docker hiện tại; tham khảo cách giới hạn WSL trong [staging/README.md](staging/README.md).
+- Nên có RAM từ 12 GB để chạy cấu hình Docker hiện tại; tham khảo cách giới hạn WSL trong [docs/guides/staging.md](docs/guides/staging.md).
 
 Không cần cài PostgreSQL hoặc Python trực tiếp trên máy để chạy các pipeline Mage trong Docker.
 
@@ -108,8 +122,8 @@ Không cần cài PostgreSQL hoặc Python trực tiếp trên máy để chạy
 ### 1. Lấy source và cấu hình môi trường
 
 ```powershell
-git clone https://github.com/nguyenanhtuan2702/NYC_TAXI.git
-Set-Location NYC_TAXI
+git clone https://github.com/thinhdao-77/NYC_TAXI_DataPipeline.git
+Set-Location NYC_TAXI_DataPipeline
 Copy-Item .env.example .env
 ```
 
@@ -138,7 +152,7 @@ Docker Compose cấu hình PostgreSQL và Mage với `restart: unless-stopped`, 
 
 ### 3. Xác nhận các bảng Staging
 
-Các script trong `staging/init_sql/` được PostgreSQL image chạy khi khởi tạo volume lần đầu. Kiểm tra bảng:
+Các script trong `sql/ddl/` được PostgreSQL image chạy khi khởi tạo volume lần đầu. Kiểm tra bảng:
 
 ```powershell
 docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging -c "\dt stage.*" -c "\dt control.*"
@@ -150,13 +164,13 @@ Các bảng dự kiến:
 - `stage.stg_taxi_zone_lookup`
 - `control.etl_control`
 
-Nếu đã có volume PostgreSQL từ trước, thay đổi các script khởi tạo không tự chạy lại trên volume đó. Hướng dẫn kiểm tra và chạy DDL thủ công xem trong [staging/README.md](staging/README.md).
+Nếu đã có volume PostgreSQL từ trước, thay đổi các script khởi tạo không tự chạy lại trên volume đó. Hướng dẫn kiểm tra và chạy DDL thủ công xem trong [docs/guides/staging.md](docs/guides/staging.md).
 
 ### 4. Nạp Taxi Zone Lookup
 
-Trong Mage, mở pipeline `letter_01_ingest_source_to_postgres`, sau đó chạy block `export_zone_lookup` cùng các upstream block. Pipeline đọc `data/reference/taxi_zone_lookup.csv` và nạp vào `stage.stg_taxi_zone_lookup`.
+Trong Mage, mở pipeline `ingest_zone_lookup`, sau đó chạy block `export_zone_lookup` cùng các upstream block. Pipeline đọc `data/reference/taxi_zone_lookup.csv` và nạp vào `stage.stg_taxi_zone_lookup`.
 
-Chi tiết thao tác trên Mage UI được mô tả trong [staging/README.md](staging/README.md).
+Chi tiết thao tác trên Mage UI được mô tả trong [docs/guides/staging.md](docs/guides/staging.md).
 
 ### 5. Nạp Yellow Taxi Trip Records
 
@@ -187,23 +201,23 @@ docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_stagi
 
 Pipeline nạp theo batch, thử lại khi mở kết nối PostgreSQL hoặc tải file, ghi log trạng thái theo file và tiếp tục xét các file còn lại khi một file lỗi. Nếu kết nối bị gián đoạn trong lúc nạp, giao dịch của file đó sẽ thất bại; xem log `FAILED`, xử lý nguyên nhân rồi chạy lại pipeline để nạp lại file. Không chạy đồng thời nhiều lượt nạp trên cùng một file.
 
-> Hướng dẫn đầy đủ về biến Mage, kiểm tra dữ liệu, SQL profiling, chạy lại và xử lý sự cố nằm trong [staging/README.md](staging/README.md).
+> Hướng dẫn đầy đủ về biến Mage, kiểm tra dữ liệu, SQL profiling, chạy lại và xử lý sự cố nằm trong [docs/guides/staging.md](docs/guides/staging.md).
 
 ## Kiểm tra dữ liệu Staging
 
-Các truy vấn kiểm tra dữ liệu đặt tại `staging/pg_checks/`. Chạy truy vấn bằng PowerShell, ví dụ:
+Các truy vấn kiểm tra dữ liệu đặt tại `sql/profiling/`. Chạy truy vấn bằng PowerShell, ví dụ:
 
 ```powershell
-Get-Content staging\pg_checks\03_profile_by_vendor.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+Get-Content sql\profiling\03_profile_by_vendor.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
 ```
 
-Một số truy vấn cần tham số hoặc tùy chọn `psql`; xem phần tương ứng trong [staging/README.md](staging/README.md) trước khi chạy. Một số phép kiểm tra quét toàn bảng lớn và có thể mất vài phút.
+Một số truy vấn cần tham số hoặc tùy chọn `psql`; xem phần tương ứng trong [docs/guides/staging.md](docs/guides/staging.md) trước khi chạy. Một số phép kiểm tra quét toàn bảng lớn và có thể mất vài phút.
 
 Staging giữ dữ liệu nguồn và các cột kiểm toán; các bước làm sạch, lọc nghiệp vụ và mô hình hóa thuộc các tầng tiếp theo.
 
 ## Kiểm thử ETL Stage và Dimension
 
-Runner QA chỉ đọc nằm trong `tests/run_quality_tests.py`; hướng dẫn và Test Plan ở `tests/README.md` và `docs/02_test_plans_and_logs/test-plan.md`.
+Runner QA chỉ đọc nằm trong `tests/run_quality_tests.py`; hướng dẫn và Test Plan ở `docs/guides/testing.md` và `docs/02_test_plans_and_logs/test-plan.md`.
 
 ```powershell
 python tests\run_quality_tests.py --suite smoke
@@ -212,13 +226,35 @@ python tests\run_quality_tests.py --suite all
 
 Các kết quả được lưu dạng Markdown và JSON dưới `docs/02_test_plans_and_logs/runs/`. Full scans trên bảng trips chỉ chạy khi thêm `--include-large-scans`. Runner không gọi script ETL hoặc DDL/DML.
 
-## dbt, DDS, OLAP và Power BI
+## dbt: Dimension và Fact
 
-`warehouse/01_create_dimensions.sql` và `warehouse/02_load_dimensions.sql` tạo và nạp 8 bảng Dimension bằng SQL trực tiếp. Script tạo có `DROP TABLE ... CASCADE`; không chạy trên database dùng chung nếu chưa xác nhận phạm vi ảnh hưởng. Script nạp dùng `INSERT`, chưa có cơ chế idempotent.
+Tầng DDS được build bằng dbt, chạy trong container Mage (image đã cài `dbt-postgres` theo `requirements.txt`). Cần nạp Staging trước.
 
-Các thư mục `dbt/` và `powerbi/` vẫn là khung dự án. Repo chưa có `dbt_project.yml`, `profiles.yml`, dbt models/packages, Fact, OLAP mart hoặc project Power BI hoàn chỉnh. Vì vậy, `dbt deps`, `dbt run` và `dbt test` **chưa thể chạy trong trạng thái repo hiện tại**.
+```powershell
+.\tasks.ps1 dbt-build                  # build + test toàn bộ model
+.\tasks.ps1 dbt-build dim_vendor       # một model
+.\tasks.ps1 dbt-run fact_taxi_trips    # chỉ chạy Fact (incremental theo batch_id)
+```
 
-Khi các phần này được triển khai, cần cập nhật README với cấu hình thực tế, cách kết nối tới PostgreSQL, lệnh chạy và kết quả kiểm thử.
+Lệnh tương đương không dùng script:
+
+```powershell
+docker compose exec -T mage dbt build --project-dir /home/src/dbt --profiles-dir /home/src/dbt
+```
+
+| Model | Bảng vật lý | Surrogate key |
+|---|---|---|
+| `dim_date` | `dds.dimdate` | `YYYYMMDD` |
+| `dim_time` | `dds.dimtime` | `hour * 100 + minute` |
+| `dim_location`, `dim_vendor`, `dim_payment_type`, `dim_rate_code` | `dds.dimlocation`, ... | bằng mã tự nhiên |
+| `dim_passenger_group`, `dim_distance_group` | `dds.dimpassengergroup`, `dds.dimdistancegroup` | 1..3 (tĩnh) |
+| `fact_taxi_trips` | `dds.facttaxitrip` | — (incremental) |
+
+Mỗi Dimension có dòng Unknown `SK = -1`. SK được sinh ổn định để Fact incremental không bị lệch khóa khi Dimension build lại.
+
+`sql/warehouse/` giữ bản SQL thủ công (`psql`) của Dimension/Fact để tham khảo và đối chiếu. **Không trộn** hai cách trên cùng database: dbt build lại bảng Dimension mỗi lần chạy, nên khóa ngoại do `03_create_fact.sql` tạo sẽ bị xóa theo.
+
+OLAP mart và Power BI chưa được triển khai.
 
 ## Cấu hình và lưu ý dữ liệu
 
@@ -266,9 +302,9 @@ Phân công dưới đây là định hướng làm việc của nhóm; cập nh
 
 | Phạm vi | Trách nhiệm dự kiến | Thư mục chính |
 |---|---|---|
-| Ingestion và Staging | Nạp nguồn, DDL, kiểm tra dữ liệu | `staging/`, `mage/data_loaders/`, `mage/data_exporters/`, `dbt/models/staging/` |
+| Ingestion và Staging | Nạp nguồn, DDL, kiểm tra dữ liệu | `sql/ddl/`, `sql/profiling/`, `mage/data_loaders/`, `mage/data_exporters/`, `dbt/models/staging/` |
 | Dimension | Xây dựng các bảng Dimension và dữ liệu danh mục | `dbt/seeds/`, `dbt/models/dds/dimensions/` |
 | Fact và OLAP | Xây dựng bảng Fact và truy vấn phân tích | `dbt/models/dds/facts/`, `dbt/models/olap_marts/` |
-| Kiểm thử và tích hợp | Test, pipeline end-to-end và tài liệu nhóm | `dbt/tests/`, `mage/pipelines/02_end_to_end_elt_pipeline/`, `docs/`, `README.md` |
+| Kiểm thử và tích hợp | Test, pipeline end-to-end và tài liệu nhóm | `dbt/tests/`, `mage/pipelines/`, `docs/`, `README.md` |
 
 Lộ trình hoàn thiện gồm: triển khai cấu hình và model dbt; xây dựng DDS/OLAP; tích hợp pipeline end-to-end; bổ sung kiểm thử; sau đó hoàn thiện Power BI và báo cáo. Chỉ đánh dấu các hạng mục là hoàn thành khi code và hướng dẫn chạy tương ứng đã có trong repo và được kiểm thử.

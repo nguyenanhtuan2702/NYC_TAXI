@@ -39,4 +39,4 @@ Each invocation writes Markdown and JSON under `docs/02_test_plans_and_logs/runs
 - Negative fixtures require an isolated PostgreSQL database. No fixture is inserted into the operational database.
 - Fact tests remain `BLOCKED` because there is no Fact implementation in tracked files.
 
-See [the test plan](../docs/02_test_plans_and_logs/test-plan.md) for expectations and current findings.
+See [the test plan](../02_test_plans_and_logs/test-plan.md) for expectations and current findings.

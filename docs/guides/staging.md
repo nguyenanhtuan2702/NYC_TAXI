@@ -5,7 +5,7 @@
 
 Người phụ trách phần này: Vân, nhánh `feat/staging-van`.
 
-> File này đặt tại `staging/README.md`, là hướng dẫn riêng cho phần Staging. `README.md` ở thư mục gốc là của cả nhóm; chạy phần Staging thì xem file này.
+> File này đặt tại `docs/guides/staging.md`, là hướng dẫn riêng cho phần Staging. `README.md` ở thư mục gốc là của cả nhóm; chạy phần Staging thì xem file này.
 
 ---
 
@@ -89,7 +89,7 @@ Nếu Mage hiện trang đăng nhập: email `admin@admin.com`, mật khẩu `ad
 
 ## 6. Kiểm tra bảng Staging đã được tạo
 
-Khi database được tạo lần đầu, Docker tự chạy các file trong `staging/init_sql/` (`01_init_schemas.sql`, `02_create_stage.sql`).
+Khi database được tạo lần đầu, Docker tự chạy các file trong `sql/ddl/` (`01_init_schemas.sql`, `02_create_stage.sql`).
 
 ```powershell
 docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging -c "\dt stage.*" -c "\dt control.*"
@@ -112,7 +112,7 @@ Hai pipeline có sẵn trong repo, **không cần tạo block hay dán code**: s
 
 ### 7.1. Taxi Zone Lookup (265 dòng)
 
-1. Vào <http://localhost:6789> → **Pipelines** → mở `letter_01_ingest_source_to_postgres`.
+1. Vào <http://localhost:6789> → **Pipelines** → mở `ingest_zone_lookup`.
 2. Ở block `export_zone_lookup`, bấm `⋮` → **Execute with all upstream blocks**.
 3. Đợi cả hai block có dấu tích xanh.
 
@@ -207,7 +207,7 @@ Hằng ngày: `docker compose up -d` để bật, `docker compose down` để t�
 
 ## 10. Các truy vấn đo lỗi dữ liệu thô
 
-Nằm trong `staging/pg_checks/`. Các file `02`–`09` và `11` quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**. File `10` chỉ quét một file nguồn nên nhanh hơn.
+Nằm trong `sql/profiling/`. Các file `02`–`09` và `11` quét toàn bảng nên mất vài phút: **chạy từng file, đợi xong mới chạy file tiếp theo**. File `10` chỉ quét một file nguồn nên nhanh hơn.
 
 | File | Khảo sát |
 |---|---|
@@ -225,7 +225,7 @@ Nằm trong `staging/pg_checks/`. Các file `02`–`09` và `11` quét toàn b�
 Lệnh chạy một file (thay `<tên file>`):
 
 ```powershell
-Get-Content staging\pg_checks\<tên file> | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
+Get-Content sql\profiling\<tên file> | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging
 ```
 
 Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo dạng dọc (mỗi chỉ số một dòng).
@@ -233,7 +233,7 @@ Với `02`, `05`, `07` thêm `-x` sau `-P pager=off` để kết quả in theo d
 File `10` cần truyền tên file nguồn bằng `-v f=...` (thay tên file muốn kiểm tra):
 
 ```powershell
-Get-Content staging\pg_checks\10_profile_duplicates.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging -v f=yellow_tripdata_2024-01.parquet
+Get-Content sql\profiling\10_profile_duplicates.sql | docker compose exec -T postgres psql -P pager=off -U taxi_user -d nyc_taxi_staging -v f=yellow_tripdata_2024-01.parquet
 ```
 
 Kết quả được phân tích trong báo cáo phần Staging. **Stage giữ dữ liệu thô, không lọc**; các bản ghi lỗi chưa được xử lý ở tầng này.
@@ -275,14 +275,15 @@ data/
   raw/                 24 file Parquet (không commit, pipeline tự tải)
   reference/           taxi_zone_lookup.csv, taxi_zones.zip
   download_raw.ps1     script tải dữ liệu (tùy chọn)
-staging/
-  README.md            file này
-  init_sql/            01_init_schemas.sql, 02_create_stage.sql
-    pg_checks/           inspect_parquet.py (đọc schema Parquet), 02–11 truy vấn đo lỗi dữ liệu thô
+sql/
+  ddl/                 01_init_schemas.sql, 02_create_stage.sql (Docker tự chạy khi tạo volume lần đầu)
+  profiling/           inspect_parquet.py (đọc schema Parquet), 02–11 truy vấn đo lỗi dữ liệu thô
+docs/guides/
+  staging.md           file này
 mage/
   data_loaders/        load_zone_lookup.py
   data_exporters/      export_zone_lookup.py, load_trips_to_stage.py
-  pipelines/           letter_01_ingest_source_to_postgres, ingest_trips_to_postgres
+  pipelines/           ingest_zone_lookup, ingest_trips_to_postgres
   io_config.yaml       đọc thông tin kết nối từ biến môi trường (.env)
 docker-compose.yml     PostgreSQL + Mage, có giới hạn RAM và restart tự động
 ```

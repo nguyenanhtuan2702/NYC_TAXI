@@ -1,5 +1,8 @@
 # BÁO CÁO CẬP NHẬT TẦNG DIMENSION (DDS) & PHẢN HỒI KIỂM THỬ
 
+> **Cập nhật 16/11/2026:** cách chạy chính hiện tại là **dbt** (`dbt/models/dds/`, lệnh `.\tasks.ps1 dbt-build`). Các lệnh `psql` trong tài liệu này dùng bản SQL thủ công ở `sql/warehouse/`, chỉ để tham khảo hoặc đối chiếu. **Không trộn hai cách** trên cùng một database: dbt build lại bảng Dimension mỗi lần chạy, nên khóa ngoại do `03_create_fact.sql` tạo sẽ bị xóa theo. Ngoài ra, SK trong dbt được sinh ổn định từ khóa tự nhiên (vd `DateSK = YYYYMMDD`), khác với `SERIAL` trong bản SQL.
+
+
 **Ngày cập nhật:** 27/10/2026  
 **Phạm vi:** Tầng Dimension (Schema `dds`)  
 **Mục đích:** Tài liệu này ghi nhận các điều chỉnh kỹ thuật tại tầng Dimension dựa trên Báo cáo kiểm thử lần 1 (Run ID: 20261026T034420Z), làm rõ các thiết kế nghiệp vụ và cung cấp hướng dẫn thực thi chuẩn.
@@ -97,12 +100,12 @@ docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging -c "DROP S
 ### Bước 2: Khởi tạo cấu trúc và dòng Unknown
 Sử dụng tham số `-v ON_ERROR_STOP=1` để dừng script ngay khi có ngoại lệ.
 ```powershell
-Get-Content warehouse\01_create_dimensions.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\01_create_dimensions.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U taxi_user -d nyc_taxi_staging
 ```
 
 ### Bước 3: Nạp và chuẩn hóa dữ liệu
 ```powershell
-Get-Content warehouse\02_load_dimensions.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\02_load_dimensions.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U taxi_user -d nyc_taxi_staging
 ```
 
 ### Kịch bản kiểm tra Idempotency

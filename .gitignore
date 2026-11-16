@@ -1,23 +1,27 @@
-﻿# Data nặng
+# Data nặng
 data/raw/*
 !data/raw/.gitkeep
 *.parquet
 !data/sample/*.parquet
 *.duckdb
-warehouse/*
-!warehouse/.gitkeep
-!warehouse/*.sql
-!warehouse/*.md
+*.duckdb.wal
+data/warehouse/*
+!data/warehouse/.gitkeep
+
+# Log kiểm thử sinh tự động (giữ một lần chạy mẫu đã được commit)
+docs/02_test_plans_and_logs/runs/*
+!docs/02_test_plans_and_logs/runs/run_20261026T034420Z.*
 
 # Môi trường
 .env
-pgdata/
 
 # Mage / dbt / Python
 .mage_data/
 logs/
 target/
 dbt_packages/
+dbt/logs/
+dbt/.user.yml
 __pycache__/
 *.pyc
 .venv/

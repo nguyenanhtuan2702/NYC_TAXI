@@ -1,5 +1,8 @@
 # NYC TAXI - HƯỚNG DẪN TRIỂN KHAI TẦNG DIMENSION (DDS)
 
+> **Cập nhật 16/11/2026:** cách chạy chính hiện tại là **dbt** (`dbt/models/dds/`, lệnh `.\tasks.ps1 dbt-build`). Các lệnh `psql` trong tài liệu này dùng bản SQL thủ công ở `sql/warehouse/`, chỉ để tham khảo hoặc đối chiếu. **Không trộn hai cách** trên cùng một database: dbt build lại bảng Dimension mỗi lần chạy, nên khóa ngoại do `03_create_fact.sql` tạo sẽ bị xóa theo. Ngoài ra, SK trong dbt được sinh ổn định từ khóa tự nhiên (vd `DateSK = YYYYMMDD`), khác với `SERIAL` trong bản SQL.
+
+
 Tài liệu này hướng dẫn cách khởi tạo và nạp dữ liệu cho các bảng Dimension thuộc mô hình kho dữ liệu NYC Yellow Taxi.
 - **Người phụ trách:** Khoa (Người 2)
 - **Nguồn dữ liệu:** `stage.stg_yellow_taxi_trips`, `stage.stg_taxi_zone_lookup` (do Vân phụ trách nạp).
@@ -53,7 +56,7 @@ Toàn bộ 8 bảng Dimension được sử dụng khóa chính (Surrogate Key) 
 Mở Terminal (PowerShell) tại thư mục gốc của project (NYC_TAXI), chạy lệnh sau để thiết lập cấu trúc:
 
 ```powershell
-Get-Content warehouse\01_create_dimensions.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\01_create_dimensions.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 *Kết quả mong đợi:* Hệ thống báo `CREATE SCHEMA`, `CREATE TABLE` và chèn thành công dòng `-1`.
 
@@ -61,7 +64,7 @@ Get-Content warehouse\01_create_dimensions.sql | docker compose exec -T postgres
 Tiếp tục chạy lệnh sau để load dữ liệu từ `stage` sang `dds`:
 
 ```powershell
-Get-Content warehouse\02_load_dimensions.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
+Get-Content sql\warehouse\02_load_dimensions.sql | docker compose exec -T postgres psql -U taxi_user -d nyc_taxi_staging
 ```
 *Kết quả mong đợi:* Hệ thống lọc trùng và chèn dữ liệu vào bảng, báo `INSERT 0 [số dòng]`. Quá trình mất khoảng 10-30 giây.
 

@@ -42,7 +42,7 @@ executor_config: {}
 executor_count: 1
 executor_type: null
 extensions: {}
-name: 01_ingest_source_to_postgres
+name: ingest_zone_lookup
 notification_config: {}
 remote_variables_dir: null
 retry_config: {}
@@ -52,6 +52,6 @@ settings:
 spark_config: {}
 tags: []
 type: python
-uuid: letter_01_ingest_source_to_postgres
+uuid: ingest_zone_lookup
 variables_dir: /home/src/mage_data/mage
 widgets: []

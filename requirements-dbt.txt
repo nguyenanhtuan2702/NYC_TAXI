@@ -1,0 +1,5 @@
+# Cài vào virtualenv riêng /opt/dbt trong image (xem Dockerfile), không chung với Mage.
+dbt-core~=1.12.0
+dbt-duckdb~=1.11.1
+dbt-postgres~=1.11.0   # bỏ ở bước 4 (ELT), khi profiles.yml chuyển sang duckdb
+duckdb~=1.5.6

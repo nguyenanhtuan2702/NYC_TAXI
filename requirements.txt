@@ -1,0 +1,4 @@
+# Gói thêm cho môi trường Python của Mage (image đã có pandas, pyarrow, psycopg2).
+# Image Mage dùng Python 3.10: duckdb 2.x cần >= 3.11 nên dùng 1.5.x.
+# Giữ cùng phiên bản duckdb với requirements-dbt.txt để Mage và dbt đọc/ghi chung một file.
+duckdb~=1.5.6
