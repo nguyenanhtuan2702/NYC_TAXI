@@ -1,0 +1,229 @@
+{
+  "run_id": "20261026T033457Z",
+  "started_at_utc": "2026-10-26T03:34:57.276769+00:00",
+  "finished_at_utc": "2026-10-26T03:35:20.151289+00:00",
+  "suite": "smoke",
+  "scope": "all",
+  "read_only": true,
+  "large_table_scans_enabled": false,
+  "overall_status": "FAIL",
+  "counts": {
+    "PASS": 13,
+    "FAIL": 8,
+    "BLOCKED": 0,
+    "NOT RUN": 0,
+    "NOT APPLICABLE": 0
+  },
+  "tests": [
+    {
+      "test_id": "PF-REPO-01",
+      "name": "Required repository assets",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Stage/Dimension scripts and loader files exist",
+      "actual": "all present",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DIALECT-01",
+      "name": "Verify database engine",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Use repository's configured database",
+      "actual": "PostgreSQL 17; no SQL Server service configured",
+      "note": "The supplied task mentions SQL Server; this suite follows the repository configuration.",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-ENV-01",
+      "name": "Required connection settings are present",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Required variable names configured; values kept private",
+      "actual": "all required names present",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-COMPOSE-01",
+      "name": "Docker Compose configuration parses",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "docker compose config --quiet succeeds",
+      "actual": "configuration valid",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-SAFETY-01",
+      "name": "Write-impact scripts identified and excluded",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Runner does not invoke ETL or mutating scripts",
+      "actual": "create script contains DROP TABLE=True; load script contains DML=True",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-STACK-01",
+      "name": "Required Compose services are running",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Postgres service running",
+      "actual": "running services: postgres",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-DRIVER",
+      "name": "PostgreSQL query client is available",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "psql available through the running Postgres service",
+      "actual": "container psql",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-CONNECT",
+      "name": "Connect to PostgreSQL",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Connection succeeds using configured settings",
+      "actual": "database=nyc_taxi_staging; user=taxi_user",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-READONLY",
+      "name": "Read-only transaction enforced",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "transaction_read_only=on",
+      "actual": "on",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "STG-SM-01",
+      "name": "Trip Stage table exists and is readable",
+      "layer": "Stage Smoke",
+      "status": "PASS",
+      "expected": "stage.stg_yellow_taxi_trips exists and can be queried",
+      "actual": "readable; estimated_rows=9555824; has_row=True",
+      "note": "Trip row count is a planner estimate; other counts are exact.",
+      "duration_ms": 3156
+    },
+    {
+      "test_id": "STG-SM-02",
+      "name": "Zone Lookup Stage table exists and is readable",
+      "layer": "Stage Smoke",
+      "status": "PASS",
+      "expected": "stage.stg_taxi_zone_lookup exists and can be queried",
+      "actual": "readable; exact_rows=265; has_row=True",
+      "note": "Trip row count is a planner estimate; other counts are exact.",
+      "duration_ms": 3546
+    },
+    {
+      "test_id": "STG-SM-03",
+      "name": "ETL control table exists and is readable",
+      "layer": "Stage Smoke",
+      "status": "PASS",
+      "expected": "control.etl_control exists and can be queried",
+      "actual": "readable; exact_rows=3; has_row=True",
+      "note": "Trip row count is a planner estimate; other counts are exact.",
+      "duration_ms": 3015
+    },
+    {
+      "test_id": "STG-SM-04",
+      "name": "Source inputs and loader files are available",
+      "layer": "Stage Smoke",
+      "status": "PASS",
+      "expected": "Zone CSV and Mage loader present; no source download performed",
+      "actual": "zone_csv=True; parquet_files_present=1; trip_loader=True",
+      "note": "Missing Parquet files are normally downloaded by the loader; this smoke test does not download or load them.",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimDate",
+      "name": "DimDate exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimTime",
+      "name": "DimTime exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimLocation",
+      "name": "DimLocation exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimVendor",
+      "name": "DimVendor exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimPaymentType",
+      "name": "DimPaymentType exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimRateCode",
+      "name": "DimRateCode exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimPassengerGroup",
+      "name": "DimPassengerGroup exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "DIM-SM-DimDistanceGroup",
+      "name": "DimDistanceGroup exists, is readable, and has Unknown member",
+      "layer": "Dimension Smoke",
+      "status": "FAIL",
+      "expected": "Dimension relation exists",
+      "actual": "relation missing",
+      "note": "",
+      "duration_ms": null
+    }
+  ]
+}
