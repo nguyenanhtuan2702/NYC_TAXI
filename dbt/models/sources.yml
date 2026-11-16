@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: stage
+    description: "Dữ liệu nguồn do Mage nạp vào PostgreSQL (xem sql/ddl/02_create_stage.sql)."
+    schema: stage
+    tables:
+      - name: stg_yellow_taxi_trips
+      - name: stg_taxi_zone_lookup

@@ -9,7 +9,7 @@
 - Stage: `stage.stg_yellow_taxi_trips`, `stage.stg_taxi_zone_lookup`; log ETL: `control.etl_control`.
 - SQL tạo 8 Dimension: `DimDate`, `DimTime`, `DimLocation`, `DimVendor`, `DimPaymentType`, `DimRateCode`, `DimPassengerGroup`, `DimDistanceGroup` trong schema `dds`.
 - Tên không đặt trong dấu ngoặc kép như `DimDate`/`DateSK` được PostgreSQL lưu chữ thường (`dimdate`/`datesk`). Runner dùng tên vật lý này.
-- `warehouse/01_create_dimensions.sql` có `DROP TABLE ... CASCADE`; `warehouse/02_load_dimensions.sql` dùng `INSERT`. Runner không gọi hai script này.
+- `sql/warehouse/01_create_dimensions.sql` và `02_load_dimensions.sql` (trước đây ở `warehouse/`) là bản SQL thủ công; từ 16/11/2026 Dimension chính được build bằng dbt (`dbt/models/dds/dimensions/`). Runner không gọi các script hay model này.
 - Không có Fact table, Fact ETL hoặc pipeline end-to-end trong repository.
 
 ## Lệnh điều khiển

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dbt.txt
+
+      - name: Python syntax check
+        run: python -m compileall -q tests mage sql/profiling
+
+      - name: Docker Compose config
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: dbt parse
+        working-directory: dbt
+        env:
+          POSTGRES_PASSWORD: ci-not-used
+        run: dbt parse --profiles-dir .

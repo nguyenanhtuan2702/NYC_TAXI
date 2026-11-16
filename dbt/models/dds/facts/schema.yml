@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: fact_taxi_trips
+    description: "Bảng dữ kiện FactTaxiTrip lưu thông tin chi tiết từng chuyến xe Yellow Taxi hợp lệ"
+    columns:
+      - name: pickupdatesk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: datesk
+
+      - name: dropoffdatesk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: datesk
+
+      - name: pickuplocationsk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: locationsk
+
+      - name: dropofflocationsk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: locationsk
+
+      - name: vendorsk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor')
+                field: vendorsk
+
+      - name: paymenttypesk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_payment_type')
+                field: paymenttypesk
+
+      - name: ratecodesk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_rate_code')
+                field: ratecodesk
+
+      - name: totaltrips
+        data_tests:
+          - not_null
+
+      - name: totalamount
+        data_tests:
+          - not_null
