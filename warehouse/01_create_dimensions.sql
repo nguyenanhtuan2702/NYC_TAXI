@@ -4,9 +4,10 @@ CREATE SCHEMA IF NOT EXISTS dds;
 -- ==========================================
 -- 1. DimDate
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimDate (
+DROP TABLE IF EXISTS dds.DimDate CASCADE;
+CREATE TABLE dds.DimDate (
     DateSK SERIAL PRIMARY KEY,
-    FullDate DATE UNIQUE NOT NULL,
+    FullDate DATE,
     Day INT,
     DayOfWeek INT,
     DayName VARCHAR(20),
@@ -17,106 +18,119 @@ CREATE TABLE IF NOT EXISTS dds.DimDate (
     Year INT
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimDate (DateSK, FullDate, Day, DayOfWeek, DayName, WeekOfYear, Month, MonthName, Quarter, Year)
-VALUES (-1, '1900-01-01', -1, -1, 'Unknown', -1, -1, 'Unknown', -1, -1)
-ON CONFLICT (FullDate) DO NOTHING;
+VALUES (-1, '1900-01-01', -1, -1, 'Unknown', -1, -1, 'Unknown', -1, -1);
+
 
 -- ==========================================
 -- 2. DimTime
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimTime (
+DROP TABLE IF EXISTS dds.DimTime CASCADE;
+CREATE TABLE dds.DimTime (
     TimeSK SERIAL PRIMARY KEY,
     Hour INT,
     Minute INT,
     TimeOfDay VARCHAR(20),
-    TimeSlot VARCHAR(50),
-    UNIQUE (Hour, Minute)
+    TimeSlot VARCHAR(50)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimTime (TimeSK, Hour, Minute, TimeOfDay, TimeSlot)
-VALUES (-1, -1, -1, 'Unknown', 'Unknown')
-ON CONFLICT (Hour, Minute) DO NOTHING;
+VALUES (-1, -1, -1, 'Unknown', 'Unknown');
+
 
 -- ==========================================
 -- 3. DimLocation
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimLocation (
+DROP TABLE IF EXISTS dds.DimLocation CASCADE;
+CREATE TABLE dds.DimLocation (
     LocationSK SERIAL PRIMARY KEY,
-    LocationID INT UNIQUE NOT NULL,
+    LocationID INT,
     Borough VARCHAR(50),
     Zone VARCHAR(100),
     ServiceZone VARCHAR(50)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimLocation (LocationSK, LocationID, Borough, Zone, ServiceZone)
-VALUES (-1, -1, 'Unknown', 'Unknown', 'Unknown')
-ON CONFLICT (LocationID) DO NOTHING;
+VALUES (-1, -1, 'Unknown', 'Unknown', 'Unknown');
+
 
 -- ==========================================
 -- 4. DimVendor
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimVendor (
+DROP TABLE IF EXISTS dds.DimVendor CASCADE;
+CREATE TABLE dds.DimVendor (
     VendorSK SERIAL PRIMARY KEY,
-    VendorID INT UNIQUE NOT NULL,
+    VendorID INT,
     VendorName VARCHAR(50)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimVendor (VendorSK, VendorID, VendorName)
-VALUES (-1, -1, 'Unknown')
-ON CONFLICT (VendorID) DO NOTHING;
+VALUES (-1, -1, 'Unknown');
+
 
 -- ==========================================
 -- 5. DimPaymentType
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimPaymentType (
+DROP TABLE IF EXISTS dds.DimPaymentType CASCADE;
+CREATE TABLE dds.DimPaymentType (
     PaymentTypeSK SERIAL PRIMARY KEY,
-    PaymentTypeID INT UNIQUE NOT NULL,
+    PaymentTypeID INT,
     PaymentTypeName VARCHAR(50)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimPaymentType (PaymentTypeSK, PaymentTypeID, PaymentTypeName)
-VALUES (-1, -1, 'Unknown')
-ON CONFLICT (PaymentTypeID) DO NOTHING;
+VALUES (-1, -1, 'Unknown');
+
 
 -- ==========================================
 -- 6. DimRateCode
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimRateCode (
+DROP TABLE IF EXISTS dds.DimRateCode CASCADE;
+CREATE TABLE dds.DimRateCode (
     RateCodeSK SERIAL PRIMARY KEY,
-    RateCodeID INT UNIQUE NOT NULL,
+    RateCodeID INT,
     RateCodeName VARCHAR(50)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimRateCode (RateCodeSK, RateCodeID, RateCodeName)
-VALUES (-1, -1, 'Unknown')
-ON CONFLICT (RateCodeID) DO NOTHING;
+VALUES (-1, -1, 'Unknown');
+
 
 -- ==========================================
 -- 7. DimPassengerGroup
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimPassengerGroup (
+DROP TABLE IF EXISTS dds.DimPassengerGroup CASCADE;
+CREATE TABLE dds.DimPassengerGroup (
     PassengerGroupSK SERIAL PRIMARY KEY,
-    PassengerGroupCode VARCHAR(20) UNIQUE NOT NULL,
+    PassengerGroupCode VARCHAR(20),
     PassengerGroupName VARCHAR(50),
     MinPassengers INT,
     MaxPassengers INT
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimPassengerGroup (PassengerGroupSK, PassengerGroupCode, PassengerGroupName, MinPassengers, MaxPassengers)
-VALUES (-1, 'UNK', 'Unknown', -1, -1)
-ON CONFLICT (PassengerGroupCode) DO NOTHING;
+VALUES (-1, 'UNK', 'Unknown', -1, -1);
+
 
 -- ==========================================
 -- 8. DimDistanceGroup
 -- ==========================================
-CREATE TABLE IF NOT EXISTS dds.DimDistanceGroup (
+DROP TABLE IF EXISTS dds.DimDistanceGroup CASCADE;
+CREATE TABLE dds.DimDistanceGroup (
     DistanceGroupSK SERIAL PRIMARY KEY,
-    DistanceGroupCode VARCHAR(20) UNIQUE NOT NULL,
+    DistanceGroupCode VARCHAR(20),
     DistanceGroupName VARCHAR(50),
-    MinDistance NUMERIC(10,4),
-    MaxDistance NUMERIC(10,4)
+    MinDistance NUMERIC(10,2),
+    MaxDistance NUMERIC(10,2)
 );
 
+-- Khởi tạo dòng Unknown
 INSERT INTO dds.DimDistanceGroup (DistanceGroupSK, DistanceGroupCode, DistanceGroupName, MinDistance, MaxDistance)
-VALUES (-1, 'UNK', 'Unknown', -1, -1)
-ON CONFLICT (DistanceGroupCode) DO NOTHING;
+VALUES (-1, 'UNK', 'Unknown', -1, -1);

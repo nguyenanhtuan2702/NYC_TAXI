@@ -1,5 +1,10 @@
 -- ==========================================
 -- 1. Load DimLocation
+-- Từ bảng tham chiếu stage.stg_taxi_zone_lookup
+-- ==========================================
+-- ==========================================
+-- 1. Load DimLocation
+-- Từ bảng tham chiếu stage.stg_taxi_zone_lookup
 -- ==========================================
 INSERT INTO dds.DimLocation (LocationID, Borough, Zone, ServiceZone)
 SELECT DISTINCT 
@@ -8,12 +13,12 @@ SELECT DISTINCT
     zone, 
     service_zone
 FROM stage.stg_taxi_zone_lookup
-WHERE location_id IS NOT NULL
-ON CONFLICT (LocationID) DO NOTHING;
+WHERE location_id IS NOT NULL;
 
 
 -- ==========================================
 -- 2. Load DimVendor
+-- Xử lý mã lạ (6, 7) thành Unknown
 -- ==========================================
 INSERT INTO dds.DimVendor (VendorID, VendorName)
 SELECT DISTINCT 
@@ -24,12 +29,12 @@ SELECT DISTINCT
         ELSE 'Unknown' 
     END AS VendorName
 FROM stage.stg_yellow_taxi_trips
-WHERE vendor_id IS NOT NULL
-ON CONFLICT (VendorID) DO NOTHING;
+WHERE vendor_id IS NOT NULL;
 
 
 -- ==========================================
 -- 3. Load DimPaymentType
+-- Xử lý mã 0 (Flex Fare) thành Unknown
 -- ==========================================
 INSERT INTO dds.DimPaymentType (PaymentTypeID, PaymentTypeName)
 SELECT DISTINCT 
@@ -44,12 +49,12 @@ SELECT DISTINCT
         ELSE 'Unknown' 
     END AS PaymentTypeName
 FROM stage.stg_yellow_taxi_trips
-WHERE payment_type IS NOT NULL
-ON CONFLICT (PaymentTypeID) DO NOTHING;
+WHERE payment_type IS NOT NULL;
 
 
 -- ==========================================
 -- 4. Load DimRateCode
+-- Xử lý mã 99 và NULL thành Unknown (ID 99)
 -- ==========================================
 INSERT INTO dds.DimRateCode (RateCodeID, RateCodeName)
 SELECT DISTINCT 
@@ -63,34 +68,34 @@ SELECT DISTINCT
         WHEN ratecode_id = 6 THEN 'Group ride'
         ELSE 'Unknown' 
     END AS RateCodeName
-FROM stage.stg_yellow_taxi_trips
-ON CONFLICT (RateCodeID) DO NOTHING;
+FROM stage.stg_yellow_taxi_trips;
 
 
 -- ==========================================
 -- 5. Load DimPassengerGroup
+-- Phân loại nhóm hành khách tĩnh
 -- ==========================================
 INSERT INTO dds.DimPassengerGroup (PassengerGroupCode, PassengerGroupName, MinPassengers, MaxPassengers)
 VALUES 
     ('SINGLE', '1 hành khách', 1, 1),
     ('SMALL', 'Nhóm 2-4 người', 2, 4),
-    ('LARGE', 'Nhóm từ 5 người trở lên', 5, 9999)
-ON CONFLICT (PassengerGroupCode) DO NOTHING;
+    ('LARGE', 'Nhóm từ 5 người trở lên', 5, 99);
 
 
 -- ==========================================
 -- 6. Load DimDistanceGroup
+-- Phân loại độ dài chuyến đi tĩnh
 -- ==========================================
 INSERT INTO dds.DimDistanceGroup (DistanceGroupCode, DistanceGroupName, MinDistance, MaxDistance)
 VALUES 
-    ('SHORT', 'Dưới 2 miles', 0.0000, 1.9999),
-    ('MEDIUM', '2 đến 5 miles', 2.0000, 5.0000),
-    ('LONG', 'Trên 5 miles', 5.0001, 999999.9999)
-ON CONFLICT (DistanceGroupCode) DO NOTHING;
+    ('SHORT', 'Dưới 2 miles', 0.00, 1.99),
+    ('MEDIUM', '2 đến 5 miles', 2.00, 5.00),
+    ('LONG', 'Trên 5 miles', 5.01, 9999.99);
 
 
 -- ==========================================
 -- 7. Load DimDate
+-- Generate dữ liệu ngày cho 2 năm 2024-2025
 -- ==========================================
 INSERT INTO dds.DimDate (FullDate, Day, DayOfWeek, DayName, WeekOfYear, Month, MonthName, Quarter, Year)
 SELECT 
@@ -107,12 +112,12 @@ FROM (
     SELECT '2024-01-01'::DATE + sequence.day AS datum
     FROM generate_series(0, 730) AS sequence(day)
 ) dq
-WHERE EXTRACT(YEAR FROM datum) IN (2024, 2025)
-ON CONFLICT (FullDate) DO NOTHING;
+WHERE EXTRACT(YEAR FROM datum) IN (2024, 2025);
 
 
 -- ==========================================
 -- 8. Load DimTime
+-- Generate dữ liệu 24h
 -- ==========================================
 INSERT INTO dds.DimTime (Hour, Minute, TimeOfDay, TimeSlot)
 SELECT 
@@ -125,5 +130,4 @@ SELECT
         ELSE 'Night'
     END AS TimeOfDay,
     CONCAT(LPAD(h::TEXT, 2, '0'), ':00 - ', LPAD((h+1)::TEXT, 2, '0'), ':00') AS TimeSlot
-FROM generate_series(0, 23) h, generate_series(0, 59) m
-ON CONFLICT (Hour, Minute) DO NOTHING;
+FROM generate_series(0, 23) h, generate_series(0, 59) m;

@@ -9,7 +9,8 @@ Dự án xây dựng quy trình xử lý và phân tích dữ liệu **NYC Yello
 | PostgreSQL Staging | Có DDL tạo schema, bảng chuyến đi, bảng Zone Lookup và bảng log ETL |
 | Nạp dữ liệu bằng Mage.ai | Có pipeline nạp Taxi Zone Lookup và Yellow Taxi Parquet; pipeline chuyến đi hỗ trợ tải file, retry, nạp theo batch và chạy lại |
 | Docker Compose | Có cấu hình chạy PostgreSQL và Mage.ai |
-| dbt / DDS / OLAP | Có cấu trúc thư mục, chưa có `dbt_project.yml`, model, package hoặc cấu hình để chạy dbt |
+| Dimension DDS | Có SQL tạo/nạp 8 Dimension trong `warehouse/`; chưa có Fact |
+| dbt / OLAP | Có cấu trúc thư mục, chưa có `dbt_project.yml`, dbt model/package hoặc OLAP mart |
 | End-to-end ELT | Chưa có pipeline triển khai trong `mage/pipelines/02_end_to_end_elt_pipeline/` |
 | Power BI | Có thư mục khung; chưa có báo cáo `.pbip` hoặc dashboard hoàn chỉnh |
 
@@ -79,11 +80,12 @@ NYC_TAXI/
 ├── powerbi/
 │   ├── dax/
 │   └── map_shapes/
+├── tests/                           # Runner QA chỉ đọc cho Stage và Dimension
 ├── staging/
 │   ├── README.md                    # Hướng dẫn chi tiết chạy Staging
 │   ├── init_sql/                    # DDL khởi tạo schema và bảng
 │   └── pg_checks/                   # SQL/Python kiểm tra dữ liệu nguồn
-└── warehouse/                       # Vị trí dành cho đầu ra warehouse cục bộ
+└── warehouse/                       # SQL tạo/nạp Dimension
 ```
 
 Các file hướng dẫn chi tiết:
@@ -199,9 +201,22 @@ Một số truy vấn cần tham số hoặc tùy chọn `psql`; xem phần tư�
 
 Staging giữ dữ liệu nguồn và các cột kiểm toán; các bước làm sạch, lọc nghiệp vụ và mô hình hóa thuộc các tầng tiếp theo.
 
+## Kiểm thử ETL Stage và Dimension
+
+Runner QA chỉ đọc nằm trong `tests/run_quality_tests.py`; hướng dẫn và Test Plan ở `tests/README.md` và `docs/02_test_plans_and_logs/test-plan.md`.
+
+```powershell
+python tests\run_quality_tests.py --suite smoke
+python tests\run_quality_tests.py --suite all
+```
+
+Các kết quả được lưu dạng Markdown và JSON dưới `docs/02_test_plans_and_logs/runs/`. Full scans trên bảng trips chỉ chạy khi thêm `--include-large-scans`. Runner không gọi script ETL hoặc DDL/DML.
+
 ## dbt, DDS, OLAP và Power BI
 
-Các thư mục `dbt/`, `warehouse/` và `powerbi/` hiện được tạo làm khung dự án. Repo hiện chưa có `dbt_project.yml`, `profiles.yml`, model dbt, các package hoặc project Power BI hoàn chỉnh. Vì vậy, các lệnh như `dbt deps`, `dbt run` và `dbt test` **chưa thể chạy trong trạng thái repo hiện tại**.
+`warehouse/01_create_dimensions.sql` và `warehouse/02_load_dimensions.sql` tạo và nạp 8 bảng Dimension bằng SQL trực tiếp. Script tạo có `DROP TABLE ... CASCADE`; không chạy trên database dùng chung nếu chưa xác nhận phạm vi ảnh hưởng. Script nạp dùng `INSERT`, chưa có cơ chế idempotent.
+
+Các thư mục `dbt/` và `powerbi/` vẫn là khung dự án. Repo chưa có `dbt_project.yml`, `profiles.yml`, dbt models/packages, Fact, OLAP mart hoặc project Power BI hoàn chỉnh. Vì vậy, `dbt deps`, `dbt run` và `dbt test` **chưa thể chạy trong trạng thái repo hiện tại**.
 
 Khi các phần này được triển khai, cần cập nhật README với cấu hình thực tế, cách kết nối tới PostgreSQL, lệnh chạy và kết quả kiểm thử.
 
