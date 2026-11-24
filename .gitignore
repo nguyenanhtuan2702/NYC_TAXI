@@ -6,6 +6,8 @@ data/raw/*
 *.duckdb
 warehouse/*
 !warehouse/.gitkeep
+!warehouse/*.sql
+!warehouse/*.md
 
 # Môi trường
 .env
