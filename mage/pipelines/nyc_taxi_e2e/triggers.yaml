@@ -1,0 +1,41 @@
+triggers:
+- description: null
+  envs: []
+  last_enabled_at: 2026-11-21 03:56:41.380586+00:00
+  name: monthly_e2e
+  pipeline_uuid: nyc_taxi_e2e
+  schedule_interval: 0 20 1 * *
+  schedule_type: time
+  settings:
+    skip_if_previous_running: true
+    timeout: 7200
+    timeout_status: failed
+  sla: null
+  start_time: 2026-11-21 00:00:00+00:00
+  status: active
+  token: null
+  variables:
+    check_source_updates: 'true'
+    file_name: ALL
+    qa_large_scans: 'false'
+    qa_suite: all
+- description: Manual run via scheduler (tasks.ps1 e2e, mage/utils/trigger_run.py)
+  envs: []
+  last_enabled_at: 2026-11-24 02:14:45.946561+00:00
+  name: manual_e2e
+  pipeline_uuid: nyc_taxi_e2e
+  schedule_interval: null
+  schedule_type: api
+  settings:
+    skip_if_previous_running: true
+    timeout: 7200
+    timeout_status: failed
+  sla: null
+  start_time: null
+  status: active
+  token: null
+  variables:
+    check_source_updates: 'true'
+    file_name: ALL
+    qa_large_scans: 'false'
+    qa_suite: all

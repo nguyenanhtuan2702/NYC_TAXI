@@ -1,0 +1,17 @@
+version: 2
+
+# SCD Type 2 cho Taxi Zone Lookup.
+# Mỗi lần `dbt snapshot` / `dbt build`: so borough, zone, service_zone với phiên bản hiện hành;
+# nếu khác thì đóng phiên bản cũ (dbt_valid_to = thời điểm chạy) và mở phiên bản mới.
+# dbt_valid_from là THỜI ĐIỂM CHẠY SNAPSHOT, không phải ngày TLC đổi khu vực
+# (nguồn không có ngày hiệu lực); dim_location xử lý phiên bản đầu tiên, xem dim_location.sql.
+snapshots:
+  - name: snap_taxi_zone_lookup
+    relation: ref('stg_taxi_zone_lookup')
+    description: "Lịch sử thay đổi Taxi Zone (SCD2): một dòng mỗi phiên bản của location_id."
+    config:
+      schema: snapshots
+      unique_key: location_id
+      strategy: check
+      check_cols: [borough, zone, service_zone]
+      hard_deletes: ignore

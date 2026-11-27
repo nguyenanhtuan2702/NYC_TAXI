@@ -1,0 +1,6 @@
+version: 0.1.1
+
+# Dùng khi tạo block SQL/IO DuckDB trên giao diện Mage. Các block ingestion hiện tại
+# kết nối trực tiếp qua mage/utils/duckdb_helpers.py.
+default:
+  DUCKDB_DATABASE: "{{ env_var('DUCKDB_PATH') }}"

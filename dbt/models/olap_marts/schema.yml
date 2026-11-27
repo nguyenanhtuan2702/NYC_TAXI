@@ -1,0 +1,60 @@
+version: 2
+
+# OLAP mart (schema olap): bảng tổng hợp từ FactTaxiTrip cho Power BI.
+# Câu hỏi trong modeling.pdf mà từng mart phục vụ: xem docs/guides/olap.md.
+# Đối chiếu tổng với Fact: tests/olap/assert_olap_marts_reconcile_fact.sql.
+
+models:
+  - name: mart_trips_daily
+    description: "Ngày đón × khu vực đón × hãng xe × thanh toán × mã giá (A1, A2, A3, A6, A8, B2, B3)."
+    columns:
+      - name: datesk
+        data_tests: [not_null]
+      - name: locationsk
+        data_tests: [not_null]
+      - name: borough
+        data_tests: [not_null]
+      - name: vendorname
+        data_tests: [not_null]
+      - name: paymenttypename
+        data_tests: [not_null]
+      - name: ratecodename
+        data_tests: [not_null]
+
+  - name: mart_hourly_activity
+    description: "Lượt đón/trả theo ngày × giờ × quận, cột activity_role = pickup | dropoff (A4, A2 mức giờ, 5b)."
+    columns:
+      - name: activity_role
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['pickup', 'dropoff']
+      - name: hour
+        data_tests: [not_null]
+      - name: borough
+        data_tests: [not_null]
+
+  - name: mart_routes_monthly
+    description: "Tuyến khu vực đón → khu vực trả theo tháng (A7, B5)."
+    columns:
+      - name: pickup_locationid
+        data_tests: [not_null]
+      - name: dropoff_locationid
+        data_tests: [not_null]
+
+  - name: mart_trip_profile
+    description: "Tháng × nhóm hành khách × mã giá × nhóm cự ly × thanh toán (A5, B1, B3)."
+    columns:
+      - name: passengergroupname
+        data_tests: [not_null]
+      - name: ratecodename
+        data_tests: [not_null]
+      - name: distancegroupname
+        data_tests: [not_null]
+
+  - name: mart_monthly_kpi
+    description: "KPI theo tháng đón, tăng trưởng so với tháng trước và cùng kỳ năm trước (B2, B3, B4)."
+    columns:
+      - name: month_start
+        data_tests: [unique, not_null]

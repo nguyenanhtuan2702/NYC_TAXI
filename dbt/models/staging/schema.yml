@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_taxi_zone_lookup
+    description: "Taxi Zone Lookup đã chuẩn hóa khoảng trắng; is_unknown_zone cho mã 264, 265."
+    columns:
+      - name: location_id
+        data_tests: [unique, not_null]
+      - name: borough
+        data_tests: [not_null]
+
+  - name: stg_yellow_taxi_trips
+    description: >
+      Một dòng một chuyến, giữ đủ mọi dòng của raw.yellow_tripdata (không lọc).
+      Thêm source_month, trip_duration_minutes, component_total_amount, các cờ is_*
+      và is_valid_for_fact (điều kiện giữ dòng trong Fact).
+    columns:
+      - name: source_file_name
+        data_tests: [not_null]
+      - name: source_row_number
+        data_tests: [not_null]
+      - name: batch_id
+        data_tests: [not_null]
+      - name: source_month
+        description: "Tháng của file nguồn, lấy từ tên file."
+        data_tests: [not_null]
+      - name: pu_location_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_taxi_zone_lookup')
+                field: location_id
+              config:
+                severity: warn
+      - name: do_location_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_taxi_zone_lookup')
+                field: location_id
+              config:
+                severity: warn

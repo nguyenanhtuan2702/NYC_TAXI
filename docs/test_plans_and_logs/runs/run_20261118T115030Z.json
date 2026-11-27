@@ -1,0 +1,583 @@
+{
+  "run_id": "20261118T115030Z",
+  "started_at_utc": "2026-11-18T11:50:30.928357+00:00",
+  "finished_at_utc": "2026-11-18T11:51:02.964950+00:00",
+  "engine": "duckdb",
+  "suite": "all",
+  "scope": "all",
+  "read_only": true,
+  "large_table_scans_enabled": true,
+  "overall_status": "PASS",
+  "counts": {
+    "PASS": 53,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "NOT RUN": 0,
+    "NOT APPLICABLE": 1
+  },
+  "tests": [
+    {
+      "test_id": "PF-REPO-01",
+      "name": "File cần thiết của repo",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "DDL, pipeline Mage, project dbt và Zone CSV có trong repo",
+      "actual": "đủ",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-ENGINE-01",
+      "name": "Engine kho dữ liệu là DuckDB",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "docker-compose.yml cấu hình DUCKDB_PATH và không còn service PostgreSQL",
+      "actual": "duckdb_path=True; postgres_service=False",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-COMPOSE-01",
+      "name": "docker compose config hợp lệ",
+      "layer": "Preflight",
+      "status": "NOT APPLICABLE",
+      "expected": "Kiểm tra khi chạy runner trên máy host",
+      "actual": null,
+      "note": "Runner đang chạy trong container.",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-DRIVER",
+      "name": "Thư viện duckdb",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "duckdb 1.5.x (cùng phiên bản với Mage và dbt)",
+      "actual": "1.5.6",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-CONNECT",
+      "name": "Mở file DuckDB",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Mở được ở chế độ read_only",
+      "actual": "nyc_taxi.duckdb; 8.55 GB",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "PF-DB-READONLY",
+      "name": "Kết nối chỉ đọc",
+      "layer": "Preflight",
+      "status": "PASS",
+      "expected": "Lệnh ghi bị từ chối",
+      "actual": "InvalidInputException",
+      "note": "",
+      "duration_ms": null
+    },
+    {
+      "test_id": "SM-raw.yellow_tripdata",
+      "name": "raw.yellow_tripdata tồn tại và có dữ liệu",
+      "layer": "Smoke raw",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=89,892,322",
+      "note": "",
+      "duration_ms": 508
+    },
+    {
+      "test_id": "SM-raw.taxi_zone_lookup",
+      "name": "raw.taxi_zone_lookup tồn tại và có dữ liệu",
+      "layer": "Smoke raw",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=265",
+      "note": "",
+      "duration_ms": 4
+    },
+    {
+      "test_id": "SM-control.etl_control",
+      "name": "control.etl_control tồn tại và có dữ liệu",
+      "layer": "Smoke raw",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=32",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "SM-stage.stg_yellow_taxi_trips",
+      "name": "stage.stg_yellow_taxi_trips tồn tại và có dữ liệu",
+      "layer": "Smoke stage",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=89,892,322",
+      "note": "",
+      "duration_ms": 5
+    },
+    {
+      "test_id": "SM-stage.stg_taxi_zone_lookup",
+      "name": "stage.stg_taxi_zone_lookup tồn tại và có dữ liệu",
+      "layer": "Smoke stage",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=265",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "SM-snapshots.snap_taxi_zone_lookup",
+      "name": "snapshots.snap_taxi_zone_lookup tồn tại và có dữ liệu",
+      "layer": "Smoke snapshot",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=265",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "SM-dds.facttaxitrip",
+      "name": "dds.facttaxitrip tồn tại và có dữ liệu",
+      "layer": "Smoke fact",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=85,745,246",
+      "note": "",
+      "duration_ms": 12
+    },
+    {
+      "test_id": "SM-olap.mart_trips_daily",
+      "name": "olap.mart_trips_daily tồn tại và có dữ liệu",
+      "layer": "Smoke olap",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=1,411,379",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "SM-olap.mart_hourly_activity",
+      "name": "olap.mart_hourly_activity tồn tại và có dữ liệu",
+      "layer": "Smoke olap",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=242,110",
+      "note": "",
+      "duration_ms": 1
+    },
+    {
+      "test_id": "SM-olap.mart_routes_monthly",
+      "name": "olap.mart_routes_monthly tồn tại và có dữ liệu",
+      "layer": "Smoke olap",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=823,930",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "SM-olap.mart_trip_profile",
+      "name": "olap.mart_trip_profile tồn tại và có dữ liệu",
+      "layer": "Smoke olap",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=5,264",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "SM-olap.mart_monthly_kpi",
+      "name": "olap.mart_monthly_kpi tồn tại và có dữ liệu",
+      "layer": "Smoke olap",
+      "status": "PASS",
+      "expected": "Đọc được, số dòng > 0",
+      "actual": "rows=24",
+      "note": "",
+      "duration_ms": 1
+    },
+    {
+      "test_id": "SM-DimDate",
+      "name": "DimDate đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 42
+    },
+    {
+      "test_id": "SM-DimTime",
+      "name": "DimTime đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 17
+    },
+    {
+      "test_id": "SM-DimLocation",
+      "name": "DimLocation đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 27
+    },
+    {
+      "test_id": "SM-DimVendor",
+      "name": "DimVendor đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 13
+    },
+    {
+      "test_id": "SM-DimPaymentType",
+      "name": "DimPaymentType đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 12
+    },
+    {
+      "test_id": "SM-DimRateCode",
+      "name": "DimRateCode đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 13
+    },
+    {
+      "test_id": "SM-DimPassengerGroup",
+      "name": "DimPassengerGroup đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 16
+    },
+    {
+      "test_id": "SM-DimDistanceGroup",
+      "name": "DimDistanceGroup đủ cột và có đúng một dòng Unknown (-1)",
+      "layer": "Smoke dimension",
+      "status": "PASS",
+      "expected": "Đủ cột; một dòng SK = -1",
+      "actual": "unknown_rows=1",
+      "note": "",
+      "duration_ms": 18
+    },
+    {
+      "test_id": "RAW-SCH-01",
+      "name": "Hợp đồng schema raw.yellow_tripdata",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Cột và kiểu khớp sql/ddl/02_create_raw.sql",
+      "actual": "cột=24; thiếu=[]; thừa=[]; sai_kiểu=[]",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "RAW-SCH-02",
+      "name": "Hợp đồng schema raw.taxi_zone_lookup",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Cột và kiểu khớp sql/ddl/02_create_raw.sql",
+      "actual": "cột=7; thiếu=[]; thừa=[]; sai_kiểu=[]",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "RAW-CMP-01",
+      "name": "Cột kiểm toán NOT NULL theo schema",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "source_file_name, load_datetime NOT NULL ở cả hai bảng raw",
+      "actual": "cột cho phép NULL: []",
+      "note": "",
+      "duration_ms": 10
+    },
+    {
+      "test_id": "RAW-REC-01",
+      "name": "Nhật ký nạp thành công tự khớp",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Lượt SUCCESS có rows_read = rows_loaded, rows_rejected = 0",
+      "actual": "success=32; tổng=32; lệch_số_dòng=0; có_reject=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "RAW-REC-02",
+      "name": "Lượt nạp gần nhất của mỗi file đều SUCCESS",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Không file nào có lượt nạp cuối cùng FAILED",
+      "actual": "file_có_lượt_cuối_lỗi=[]",
+      "note": "",
+      "duration_ms": 4
+    },
+    {
+      "test_id": "RAW-REC-03",
+      "name": "Số dòng raw theo file = lượt nạp SUCCESS gần nhất",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Mỗi file: count(*) trong raw = rows_loaded của lượt nạp cuối",
+      "actual": "file=24; file_lệch=0",
+      "note": "",
+      "duration_ms": 194
+    },
+    {
+      "test_id": "RAW-DUP-01",
+      "name": "source_row_number liên tục 1..N trong mỗi file",
+      "layer": "Deep raw",
+      "status": "PASS",
+      "expected": "Không nạp trùng, không mất dòng (min = 1, max = N, sum = N(N+1)/2)",
+      "actual": "file_lỗi=[]",
+      "note": "",
+      "duration_ms": 218
+    },
+    {
+      "test_id": "STG-REC-01",
+      "name": "Staging giữ đủ dòng của raw",
+      "layer": "Deep stage",
+      "status": "PASS",
+      "expected": "count(stage) = count(raw)",
+      "actual": "raw=89,892,322; stage=89,892,322",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "STG-KEY-01",
+      "name": "location_id của Zone Lookup duy nhất, không NULL",
+      "layer": "Deep stage",
+      "status": "PASS",
+      "expected": "0 trùng, 0 NULL",
+      "actual": "trùng=0; null=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "STG-VAL-01",
+      "name": "Thống kê cờ chất lượng staging (cờ không NULL)",
+      "layer": "Deep stage",
+      "status": "PASS",
+      "expected": "Mọi cờ is_* là true/false; ghi nhận số dòng từng cờ",
+      "actual": {
+        "rows": 89892322,
+        "is_vendor_unknown": 562182,
+        "is_pickup_out_of_period": 59,
+        "is_pickup_outside_source_month": 634,
+        "is_dropoff_before_pickup": 3810,
+        "is_zero_duration": 556004,
+        "is_duration_over_24h": 582,
+        "is_passenger_missing": 16364542,
+        "is_distance_non_positive": 2179263,
+        "is_speed_over_100mph": 24413,
+        "is_negative_amount": 3587479,
+        "is_surcharge_missing": 15703126,
+        "is_total_mismatch": 384360,
+        "is_location_unknown": 797317,
+        "is_flex_fare": 15703126,
+        "is_valid_for_fact": 85745246
+      },
+      "note": "giá_trị_NULL_trong_cờ=0",
+      "duration_ms": 14867
+    },
+    {
+      "test_id": "DIM-SCH-DimDate",
+      "name": "DimDate: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (fulldate) không NULL, không trùng; 763 dòng",
+      "actual": "rows=763; kỳ_vọng_rows=763; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 5
+    },
+    {
+      "test_id": "DIM-SCH-DimTime",
+      "name": "DimTime: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (hour, minute) không NULL, không trùng; 1441 dòng",
+      "actual": "rows=1441; kỳ_vọng_rows=1441; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 4
+    },
+    {
+      "test_id": "DIM-SCH-DimLocation",
+      "name": "DimLocation: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (locationid, versionno) không NULL, không trùng",
+      "actual": "rows=266; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "DIM-SCH-DimVendor",
+      "name": "DimVendor: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (vendorid) không NULL, không trùng",
+      "actual": "rows=5; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 4
+    },
+    {
+      "test_id": "DIM-SCH-DimPaymentType",
+      "name": "DimPaymentType: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (paymenttypeid) không NULL, không trùng",
+      "actual": "rows=7; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "DIM-SCH-DimRateCode",
+      "name": "DimRateCode: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (ratecodeid) không NULL, không trùng",
+      "actual": "rows=8; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 4
+    },
+    {
+      "test_id": "DIM-SCH-DimPassengerGroup",
+      "name": "DimPassengerGroup: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (passengergroupcode) không NULL, không trùng; 5 dòng",
+      "actual": "rows=5; kỳ_vọng_rows=5; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "DIM-SCH-DimDistanceGroup",
+      "name": "DimDistanceGroup: SK, khóa tự nhiên, số dòng",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "SK và (distancegroupcode) không NULL, không trùng; 4 dòng",
+      "actual": "rows=4; kỳ_vọng_rows=4; sk_null=0; sk_trùng=0; nk_null=0; nk_trùng=0",
+      "note": "",
+      "duration_ms": 3
+    },
+    {
+      "test_id": "DIM-SCD-01",
+      "name": "DimLocation SCD Type 2 hợp lệ",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "Mỗi LocationID: đúng 1 bản hiện hành, các bản nối liền, bản đầu từ 1900-01-01",
+      "actual": "id_sai_số_bản_hiện_hành=0; khe_hở/chồng_lấn=0; bản_đầu_sai_validfrom=0; bản_hiện_hành_sai_validto=0; số_phiên_bản_cũ=0",
+      "note": "",
+      "duration_ms": 6
+    },
+    {
+      "test_id": "DIM-SCD-02",
+      "name": "DimLocation có đủ mọi phiên bản của snapshot",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "Số dòng snapshot = số dòng DimLocation (trừ Unknown)",
+      "actual": "snapshot=265; dimlocation(trừ Unknown)=265",
+      "note": "",
+      "duration_ms": 1
+    },
+    {
+      "test_id": "DIM-MAP-02",
+      "name": "Chuẩn hóa nhãn Unknown",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "Vendor ngoài 1/2, payment 0, ratecode 99 mang nhãn Unknown",
+      "actual": "vendor_sai=0; payment_sai=0; ratecode_sai=0",
+      "note": "",
+      "duration_ms": 2
+    },
+    {
+      "test_id": "DIM-MAP-01",
+      "name": "Mọi mã trong staging có trong Dimension",
+      "layer": "Deep dimension",
+      "status": "PASS",
+      "expected": "Location, vendor, payment, ratecode của staging đều có dòng Dimension",
+      "actual": "location_thiếu=0; vendor_thiếu=0; payment_thiếu=0; ratecode_thiếu=0",
+      "note": "",
+      "duration_ms": 1569
+    },
+    {
+      "test_id": "FACT-KEY-01",
+      "name": "Fact không có khóa Unknown (-1)",
+      "layer": "Deep fact",
+      "status": "PASS",
+      "expected": "0 dòng -1 ở cả 11 khóa (sau khi thêm nhóm NONE và mở rộng DimDate)",
+      "actual": "không có khóa -1",
+      "note": "",
+      "duration_ms": 2656
+    },
+    {
+      "test_id": "FACT-VAL-01",
+      "name": "Measure của Fact tuân thủ quy tắc is_valid_for_fact",
+      "layer": "Deep fact",
+      "status": "PASS",
+      "expected": "TotalTrips = 1; trả sau đón; đón trong 2024–2025; tiền, quãng đường không âm",
+      "actual": {
+        "totaltrips_khác_1": 0,
+        "trả_không_sau_đón": 0,
+        "đón_ngoài_2024_2025": 0,
+        "giá_trị_âm": 0,
+        "tiền_null": 0
+      },
+      "note": "",
+      "duration_ms": 6200
+    },
+    {
+      "test_id": "FACT-REC-01",
+      "name": "Fact theo file khớp staging is_valid_for_fact",
+      "layer": "Deep fact",
+      "status": "PASS",
+      "expected": "Mỗi file: số dòng và tổng sourcerownumber bằng staging",
+      "actual": "fact_rows=85,745,246; file_lệch=[]",
+      "note": "",
+      "duration_ms": 2103
+    },
+    {
+      "test_id": "FACT-REF-01",
+      "name": "Mọi khóa của Fact có trong Dimension",
+      "layer": "Deep fact",
+      "status": "PASS",
+      "expected": "0 khóa mồ côi ở cả 11 khóa ngoại",
+      "actual": "không có khóa mồ côi",
+      "note": "",
+      "duration_ms": 2183
+    },
+    {
+      "test_id": "OLAP-REC-01",
+      "name": "Tổng của mọi mart khớp Fact",
+      "layer": "Deep olap",
+      "status": "PASS",
+      "expected": "Số chuyến, hành khách bằng nhau; doanh thu lệch < 1 USD",
+      "actual": "trips=85,745,246; revenue=2,475,529,050.41 khớp ở 6 mục",
+      "note": "",
+      "duration_ms": 447
+    },
+    {
+      "test_id": "OLAP-KPI-01",
+      "name": "mart_monthly_kpi: tháng duy nhất, liên tục",
+      "layer": "Deep olap",
+      "status": "PASS",
+      "expected": "Không trùng tháng; mọi tháng (trừ tháng đầu) có số liệu tháng trước",
+      "actual": "tháng=24; từ=2024-01-01; đến=2025-12-01; trùng=0; tháng_thiếu_kỳ_trước=0",
+      "note": "",
+      "duration_ms": 5
+    }
+  ]
+}

@@ -1,0 +1,437 @@
+// Measure DAX cho báo cáo NYC Yellow Taxi 2024–2025.
+// Cách thêm: Power BI Desktop > DAX query view > dán toàn bộ file > chạy (Run) để kiểm tra >
+// bấm "Update model with changes" (hoặc CodeLens "Update model: Add new measure" trên từng measure).
+// Định dạng số (%, tiền tệ) đặt sau trong Measure tools > Format.
+//
+// Nguyên tắc: mart chỉ lưu tổng cộng dồn được; mọi trung bình tính lại = tổng / số chuyến hợp lệ
+// (không lấy trung bình của trung bình). Xem docs/guides/olap.md.
+// Tên measure không được trùng trong toàn model, nên measure của mart phụ có tiền tố
+// (Profile, Route, Pickup/Dropoff, KPI).
+
+DEFINE
+    // ======================================================== TripsDaily (A1, A2, A3, A6, A8, B2, B3)
+    MEASURE TripsDaily[Trips] = SUM ( TripsDaily[total_trips] )
+    MEASURE TripsDaily[Passengers] = SUM ( TripsDaily[total_passengers] )
+    MEASURE TripsDaily[Revenue] = SUM ( TripsDaily[total_revenue] )
+    MEASURE TripsDaily[Avg Revenue per Trip] = DIVIDE ( [Revenue], [Trips] )
+    MEASURE TripsDaily[Avg Passengers per Trip] =
+        DIVIDE ( [Passengers], SUM ( TripsDaily[valid_passenger_trips] ) )
+    MEASURE TripsDaily[Avg Distance per Trip (mi)] =
+        DIVIDE ( SUM ( TripsDaily[total_distance] ), SUM ( TripsDaily[valid_distance_trips] ) )
+    MEASURE TripsDaily[Avg Trip Duration (min)] =
+        DIVIDE ( SUM ( TripsDaily[total_duration_minutes] ), SUM ( TripsDaily[valid_duration_trips] ) )
+    // Trung bình vận tốc từng chuyến hợp lệ (modeling.pdf trang 4).
+    MEASURE TripsDaily[Avg Speed (mph)] =
+        DIVIDE ( SUM ( TripsDaily[sum_trip_speed] ), SUM ( TripsDaily[valid_speed_trips] ) )
+    // Tỷ lệ boa tổng thể trên chuyến thẻ tín dụng có cước > 0 (câu B1).
+    MEASURE TripsDaily[Avg Tip Rate] =
+        DIVIDE ( SUM ( TripsDaily[credit_tip_amount] ), SUM ( TripsDaily[credit_fare_amount] ) )
+    MEASURE TripsDaily[Revenue Share] =
+        DIVIDE ( [Revenue], CALCULATE ( [Revenue], ALLSELECTED () ) )
+
+    // Thành phần doanh thu (B3: doanh thu tăng do yếu tố nào)
+    MEASURE TripsDaily[Fare Amount] = SUM ( TripsDaily[fare_amount] )
+    MEASURE TripsDaily[Tip Amount] = SUM ( TripsDaily[tip_amount] )
+    MEASURE TripsDaily[Tolls Amount] = SUM ( TripsDaily[tolls_amount] )
+    MEASURE TripsDaily[Surcharges] =
+        SUM ( TripsDaily[extra] ) + SUM ( TripsDaily[mta_tax] ) + SUM ( TripsDaily[improvement_surcharge] )
+            + SUM ( TripsDaily[congestion_surcharge] ) + SUM ( TripsDaily[airport_fee] )
+            + SUM ( TripsDaily[cbd_congestion_fee] )
+    MEASURE TripsDaily[Fare per Trip] = DIVIDE ( [Fare Amount], [Trips] )
+    MEASURE TripsDaily[Surcharges per Trip] = DIVIDE ( [Surcharges], [Trips] )
+    MEASURE TripsDaily[Tip per Trip] = DIVIDE ( [Tip Amount], [Trips] )
+
+    // So sánh kỳ (cần DimDate được đánh dấu Mark as date table, cột fulldate)
+    MEASURE TripsDaily[Revenue PM] =
+        CALCULATE ( [Revenue], DATEADD ( DimDate[fulldate], -1, MONTH ) )
+    // Kỳ hiện tại không có dữ liệu (vd tháng 01/2026 chỉ có ngày trả khách) thì trả BLANK, không ra -100%.
+    MEASURE TripsDaily[Revenue MoM %] =
+        IF ( NOT ISBLANK ( [Revenue] ), DIVIDE ( [Revenue] - [Revenue PM], [Revenue PM] ) )
+    MEASURE TripsDaily[Revenue PY] =
+        CALCULATE ( [Revenue], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+    // YoY chỉ có nghĩa khi đang xét MỘT năm (hoặc một khoảng trong một năm): nếu chọn cả 2024–2025,
+    // SAMEPERIODLASTYEAR lùi cả khoảng một năm và trộn hai kỳ, nên trả BLANK.
+    MEASURE TripsDaily[Revenue YoY %] =
+        IF (
+            NOT ISBLANK ( [Revenue] ) && HASONEVALUE ( DimMonth[year] ),
+            DIVIDE ( [Revenue] - [Revenue PY], [Revenue PY] )
+        )
+    MEASURE TripsDaily[Trips PY] =
+        CALCULATE ( [Trips], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+    MEASURE TripsDaily[Trips YoY %] =
+        IF (
+            NOT ISBLANK ( [Trips] ) && HASONEVALUE ( DimMonth[year] ),
+            DIVIDE ( [Trips] - [Trips PY], [Trips PY] )
+        )
+    MEASURE TripsDaily[Avg Revenue per Trip PY] = DIVIDE ( [Revenue PY], [Trips PY] )
+    MEASURE TripsDaily[Avg Revenue per Trip YoY %] =
+        IF (
+            NOT ISBLANK ( [Trips] ) && HASONEVALUE ( DimMonth[year] ),
+            DIVIDE ( [Avg Revenue per Trip] - [Avg Revenue per Trip PY], [Avg Revenue per Trip PY] )
+        )
+    // Độ đầy đủ của dữ liệu hành khách: 2024 thiếu 10,79% chuyến, 2025 thiếu 21,67% (chủ yếu Flex Fare),
+    // nên tổng hành khách KHÔNG so sánh được giữa các năm. Trang 1 hiện chỉ số này thay cho YoY hành khách.
+    MEASURE TripsDaily[Trips Without Passenger %] =
+        1 - DIVIDE ( SUM ( TripsDaily[valid_passenger_trips] ), [Trips] )
+    // Màu chữ cho bảng theo quận (conditional formatting > Field value): làm mờ dòng không phải quận thật.
+    MEASURE TripsDaily[Borough Text Color] =
+        IF ( SELECTEDVALUE ( DimLocation[borough] ) IN { "Unknown", "N/A" }, "#8A94A3", "#1F2933" )
+
+    // B2: tháng 6 so với tháng 5 trong MỘT năm (slicer hoặc trục DimMonth[year]); giữ các bộ lọc khác
+    // (hãng, khu vực, mã giá) để phân tích yếu tố đóng góp. Chỉ xóa bộ lọc ở cột mức tháng/ngày:
+    // KHÔNG dùng REMOVEFILTERS ( DimDate ) vì bảng mở rộng của DimDate gồm cả DimMonth (DimDate ở
+    // phía nhiều của quan hệ), làm mất luôn bộ lọc năm và cộng tháng 5 của mọi năm.
+    MEASURE TripsDaily[Revenue May] =
+        IF (
+            HASONEVALUE ( DimMonth[year] ),
+            CALCULATE (
+                [Revenue],
+                DimMonth[month] = 5,
+                REMOVEFILTERS ( DimMonth[monthname], DimMonth[yearmonth], DimMonth[monthstart], DimMonth[monthkey], DimMonth[quarter] ),
+                REMOVEFILTERS ( DimDate[fulldate], DimDate[day], DimDate[month], DimDate[monthname], DimDate[quarter],
+                                DimDate[weekofyear], DimDate[dayofweek], DimDate[dayname] )
+            )
+        )
+    MEASURE TripsDaily[Revenue June] =
+        IF (
+            HASONEVALUE ( DimMonth[year] ),
+            CALCULATE (
+                [Revenue],
+                DimMonth[month] = 6,
+                REMOVEFILTERS ( DimMonth[monthname], DimMonth[yearmonth], DimMonth[monthstart], DimMonth[monthkey], DimMonth[quarter] ),
+                REMOVEFILTERS ( DimDate[fulldate], DimDate[day], DimDate[month], DimDate[monthname], DimDate[quarter],
+                                DimDate[weekofyear], DimDate[dayofweek], DimDate[dayname] )
+            )
+        )
+    MEASURE TripsDaily[Revenue June vs May] = [Revenue June] - [Revenue May]
+    MEASURE TripsDaily[Revenue June vs May %] = DIVIDE ( [Revenue June vs May], [Revenue May] )
+
+    // ======================================================== Trang 7: xu hướng & so sánh kỳ (B2, B3, B4)
+    // B2: tháng 5 có 31 ngày, tháng 6 có 30 ngày, nên một phần mức giảm tháng 6 chỉ do ít hơn một ngày.
+    // So doanh thu trung bình mỗi ngày (số ngày cố định, mọi ngày của hai tháng đều có chuyến).
+    MEASURE TripsDaily[Revenue per Day May] = DIVIDE ( [Revenue May], 31 )
+    MEASURE TripsDaily[Revenue per Day June] = DIVIDE ( [Revenue June], 30 )
+    MEASURE TripsDaily[Revenue per Day June vs May %] =
+        DIVIDE ( [Revenue per Day June] - [Revenue per Day May], [Revenue per Day May] )
+
+    // B3: tách doanh thu thành các khoản. Surcharges ở trên gộp nhiều khoản; ở đây tách riêng.
+    MEASURE TripsDaily[Congestion Surcharge] = SUM ( TripsDaily[congestion_surcharge] )
+    MEASURE TripsDaily[Airport Fee] = SUM ( TripsDaily[airport_fee] )
+    // Phí vào vùng thu phí ùn tắc Manhattan (CBD), bắt đầu từ 01/2025; năm 2024 bằng 0.
+    MEASURE TripsDaily[CBD Congestion Fee] = SUM ( TripsDaily[cbd_congestion_fee] )
+    MEASURE TripsDaily[Other Surcharges] =
+        SUM ( TripsDaily[extra] ) + SUM ( TripsDaily[mta_tax] ) + SUM ( TripsDaily[improvement_surcharge] )
+    // Doanh thu (TotalAmount của nguồn) trừ tổng các khoản. Dữ liệu nguồn không luôn khớp: năm 2024 lệch
+    // -11,7 triệu USD (-0,29 USD/chuyến), năm 2025 +0,5 triệu. Giữ riêng một dòng để waterfall cộng đúng tổng.
+    MEASURE TripsDaily[Unreconciled Amount] =
+        [Revenue] - [Fare Amount] - [Tip Amount] - [Tolls Amount] - [Surcharges]
+    // Dùng với bảng RevenueComponent (powerbi/queries/RevenueComponent.pq, không có quan hệ) trên trục waterfall.
+    MEASURE TripsDaily[Component Amount] =
+        SWITCH (
+            SELECTEDVALUE ( RevenueComponent[component] ),
+            "Fare", [Fare Amount],
+            "Tip", [Tip Amount],
+            "Tolls", [Tolls Amount],
+            "Congestion surcharge", [Congestion Surcharge],
+            "Airport fee", [Airport Fee],
+            "CBD congestion fee", [CBD Congestion Fee],
+            "Other surcharges", [Other Surcharges],
+            "Unreconciled", [Unreconciled Amount]
+        )
+    MEASURE TripsDaily[Component per Trip] = DIVIDE ( [Component Amount], [Trips] )
+    // Thay đổi của từng khoản trên mỗi chuyến so với cùng kỳ năm trước; các cột waterfall cộng lại bằng
+    // thay đổi của Avg Revenue per Trip.
+    MEASURE TripsDaily[Component per Trip Change] =
+        VAR cur = [Component per Trip]
+        VAR py = CALCULATE ( [Component per Trip], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), cur - py )
+
+    // ======================================================== HourlyActivity (A4, A2 mức giờ, 5b)
+    // Mỗi chuyến có một dòng pickup và một dòng dropoff: luôn lọc một vai trò.
+    MEASURE HourlyActivity[Pickup Trips] =
+        CALCULATE ( SUM ( HourlyActivity[total_trips] ), HourlyActivity[activity_role] = "pickup" )
+    MEASURE HourlyActivity[Dropoff Trips] =
+        CALCULATE ( SUM ( HourlyActivity[total_trips] ), HourlyActivity[activity_role] = "dropoff" )
+    MEASURE HourlyActivity[Pickup Revenue] =
+        CALCULATE ( SUM ( HourlyActivity[total_revenue] ), HourlyActivity[activity_role] = "pickup" )
+    MEASURE HourlyActivity[Pickup minus Dropoff] = [Pickup Trips] - [Dropoff Trips]
+
+    // ======================================================== Trang 2: doanh thu khu vực & hãng (A2, 5b)
+    // Tỷ trọng của hãng trong ngữ cảnh hiện tại (matrix cột DimVendor: % của dòng quận/khu vực).
+    MEASURE TripsDaily[Vendor Revenue Share] =
+        DIVIDE ( [Revenue], CALCULATE ( [Revenue], REMOVEFILTERS ( DimVendor ) ) )
+    // Khu vực đón có doanh thu cao nhất trong lựa chọn hiện tại (card K2). Hòa thì nối tên.
+    MEASURE TripsDaily[Top Zone] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimLocation[zone] ), "@r", [Revenue] ), [@r], DESC )
+        RETURN IF ( NOT ISBLANK ( [Revenue] ), CONCATENATEX ( t, DimLocation[zone], ", " ) )
+    MEASURE TripsDaily[Top Zone Revenue Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimLocation[zone] ), "@r", [Revenue] ), [@r], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@r] ), [Revenue] )
+    MEASURE TripsDaily[Leading Vendor] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimVendor[vendorname] ), "@r", [Revenue] ), [@r], DESC )
+        RETURN IF ( NOT ISBLANK ( [Revenue] ), CONCATENATEX ( t, DimVendor[vendorname], ", " ) )
+    MEASURE TripsDaily[Leading Vendor Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimVendor[vendorname] ), "@r", [Revenue] ), [@r], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@r] ), [Revenue] )
+    // HourlyActivity có cột borough riêng, không nối DimLocation: chuyển bộ lọc slicer quận (DimLocation)
+    // sang HourlyActivity[borough] bằng TREATAS (vai trò pickup nên đúng là quận điểm đón).
+    // KEEPFILTERS bắt buộc: không có nó, TREATAS ghi đè bộ lọc sẵn có trên HourlyActivity[borough]
+    // (dòng matrix V3) và mọi dòng hiện phân bố của tất cả quận.
+    MEASURE HourlyActivity[Pickup Revenue (Borough)] =
+        CALCULATE (
+            [Pickup Revenue],
+            KEEPFILTERS ( TREATAS ( VALUES ( DimLocation[borough] ), HourlyActivity[borough] ) )
+        )
+    // Tỷ trọng doanh thu của một giờ trong tổng doanh thu cả ngày của quận đó (mỗi dòng heatmap cộng = 100%).
+    MEASURE HourlyActivity[Pickup Revenue Hour Share] =
+        DIVIDE (
+            [Pickup Revenue (Borough)],
+            CALCULATE (
+                [Pickup Revenue (Borough)],
+                REMOVEFILTERS ( HourlyActivity[hour], HourlyActivity[timeslot], HourlyActivity[timeofday] )
+            )
+        )
+    MEASURE HourlyActivity[Peak Revenue Hour] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@r", [Pickup Revenue (Borough)] ), [@r], DESC )
+        RETURN IF ( NOT ISBLANK ( [Pickup Revenue (Borough)] ), CONCATENATEX ( t, HourlyActivity[timeslot], ", " ) )
+    MEASURE HourlyActivity[Peak Hour Revenue Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@r", [Pickup Revenue (Borough)] ), [@r], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@r] ), [Pickup Revenue (Borough)] )
+
+    // ======================================================== Trang 3: hình thức thanh toán (A3)
+    // Tỷ trọng số chuyến của hình thức thanh toán trong ngữ cảnh hiện tại (mẫu số: mọi hình thức).
+    MEASURE TripsDaily[Payment Trip Share] =
+        DIVIDE ( [Trips], CALCULATE ( [Trips], REMOVEFILTERS ( DimPaymentType ) ) )
+    // Card K1–K3: cố định một hình thức (filter ghi đè, nên bấm hình thức khác trên trang không đổi card).
+    MEASURE TripsDaily[Card Trip Share] =
+        CALCULATE ( [Payment Trip Share], DimPaymentType[paymenttypename] = "Credit card" )
+    MEASURE TripsDaily[Cash Trip Share] =
+        CALCULATE ( [Payment Trip Share], DimPaymentType[paymenttypename] = "Cash" )
+    // Unknown gồm mã 0 (13,5 triệu chuyến; cũng thiếu số khách và mã giá) và mã -1, 5 (2 chuyến).
+    MEASURE TripsDaily[Unknown Payment Share] =
+        CALCULATE ( [Payment Trip Share], DimPaymentType[paymenttypename] = "Unknown" )
+    // Thay đổi so với cùng kỳ năm trước tính bằng điểm phần trăm (pp), chỉ khi xét một năm.
+    MEASURE TripsDaily[Card Share Change (pp)] =
+        VAR cur = [Card Trip Share]
+        VAR py = CALCULATE ( [Card Trip Share], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE TripsDaily[Cash Share Change (pp)] =
+        VAR cur = [Cash Trip Share]
+        VAR py = CALCULATE ( [Cash Trip Share], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE TripsDaily[Unknown Payment Share Change (pp)] =
+        VAR cur = [Unknown Payment Share]
+        VAR py = CALCULATE ( [Unknown Payment Share], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE TripsDaily[Tip Rate Change (pp)] =
+        VAR cur = [Avg Tip Rate]
+        VAR py = CALCULATE ( [Avg Tip Rate], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+
+    // ======================================================== Trang 4: thời điểm đón / trả (A4)
+    // Slicer quận (DimLocation) áp vào HourlyActivity[borough] cho cả hai vai trò: lượt đón TẠI quận và
+    // lượt trả TẠI quận. KEEPFILTERS để giữ bộ lọc quận của visual (small multiples, dòng matrix).
+    MEASURE HourlyActivity[Pickups (Borough)] =
+        CALCULATE ( [Pickup Trips], KEEPFILTERS ( TREATAS ( VALUES ( DimLocation[borough] ), HourlyActivity[borough] ) ) )
+    MEASURE HourlyActivity[Dropoffs (Borough)] =
+        CALCULATE ( [Dropoff Trips], KEEPFILTERS ( TREATAS ( VALUES ( DimLocation[borough] ), HourlyActivity[borough] ) ) )
+    // Số ngày trong kỳ đang xét (ngày có chuyến đón ở bất kỳ quận, giờ nào): mẫu số của trung bình mỗi ngày.
+    // Trong ô "thứ Năm × 18h" = số ngày thứ Năm của kỳ (104), không phụ thuộc giờ/quận.
+    MEASURE HourlyActivity[Days with Trips] =
+        CALCULATE (
+            DISTINCTCOUNT ( HourlyActivity[datesk] ),
+            HourlyActivity[activity_role] = "pickup",
+            REMOVEFILTERS ( HourlyActivity[borough], HourlyActivity[hour], HourlyActivity[timeslot], HourlyActivity[timeofday] )
+        )
+    MEASURE HourlyActivity[Avg Daily Pickups] = DIVIDE ( [Pickups (Borough)], [Days with Trips] )
+    MEASURE HourlyActivity[Avg Daily Dropoffs] = DIVIDE ( [Dropoffs (Borough)], [Days with Trips] )
+    // Dương: nhiều chuyến bắt đầu hơn kết thúc tại quận (người rời đi); âm: nhiều người đến hơn.
+    MEASURE HourlyActivity[Avg Daily Net Pickups] = [Avg Daily Pickups] - [Avg Daily Dropoffs]
+    MEASURE HourlyActivity[Avg Daily Pickups PY] =
+        CALCULATE ( [Avg Daily Pickups], SAMEPERIODLASTYEAR ( DimDate[fulldate] ) )
+    MEASURE HourlyActivity[Avg Daily Pickups YoY %] =
+        IF (
+            NOT ISBLANK ( [Avg Daily Pickups] ) && HASONEVALUE ( DimMonth[year] ),
+            DIVIDE ( [Avg Daily Pickups] - [Avg Daily Pickups PY], [Avg Daily Pickups PY] )
+        )
+    MEASURE HourlyActivity[Peak Pickup Hour] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@v", [Pickups (Borough)] ), [@v], DESC )
+        RETURN IF ( NOT ISBLANK ( [Pickups (Borough)] ), CONCATENATEX ( t, HourlyActivity[timeslot], ", " ) )
+    MEASURE HourlyActivity[Peak Pickup Hour Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@v", [Pickups (Borough)] ), [@v], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@v] ), [Pickups (Borough)] )
+    MEASURE HourlyActivity[Peak Dropoff Hour] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@v", [Dropoffs (Borough)] ), [@v], DESC )
+        RETURN IF ( NOT ISBLANK ( [Dropoffs (Borough)] ), CONCATENATEX ( t, HourlyActivity[timeslot], ", " ) )
+    MEASURE HourlyActivity[Peak Dropoff Hour Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( HourlyActivity[timeslot] ), "@v", [Dropoffs (Borough)] ), [@v], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@v] ), [Dropoffs (Borough)] )
+    // Ngày trong tuần có trung bình lượt đón mỗi ngày cao nhất (so trung bình vì số ngày thứ Hai..CN khác nhau).
+    MEASURE HourlyActivity[Busiest Pickup Day] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimDate[dayname] ), "@v", [Avg Daily Pickups] ), [@v], DESC )
+        RETURN IF ( NOT ISBLANK ( [Pickups (Borough)] ), CONCATENATEX ( t, DimDate[dayname], ", " ) )
+    MEASURE HourlyActivity[Busiest Day Avg Pickups] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimDate[dayname] ), "@v", [Avg Daily Pickups] ), [@v], DESC )
+        RETURN MAXX ( t, [@v] )
+
+    // ======================================================== RoutesMonthly (A7, B5)
+    MEASURE RoutesMonthly[Route Trips] = SUM ( RoutesMonthly[total_trips] )
+    MEASURE RoutesMonthly[Route Revenue] = SUM ( RoutesMonthly[total_revenue] )
+    MEASURE RoutesMonthly[Route Avg Distance (mi)] =
+        DIVIDE ( SUM ( RoutesMonthly[total_distance] ), SUM ( RoutesMonthly[valid_distance_trips] ) )
+    MEASURE RoutesMonthly[Route Avg Revenue per Trip] = DIVIDE ( [Route Revenue], [Route Trips] )
+    // Hạng của tuyến trong lựa chọn hiện tại (dùng với cột RoutesMonthly[route]); Top N: lọc Rank <= N.
+    MEASURE RoutesMonthly[Route Rank] =
+        IF (
+            HASONEVALUE ( RoutesMonthly[route] ),
+            RANKX ( ALLSELECTED ( RoutesMonthly[route] ), [Route Trips], , DESC, DENSE )
+        )
+    // B5: lượt đón / trả theo khu vực. Quan hệ đang bật: pickup_locationsk -> DimLocation;
+    // quan hệ dropoff_locationsk -> DimLocation để ở trạng thái inactive và bật bằng USERELATIONSHIP.
+    MEASURE RoutesMonthly[Zone Pickups] = [Route Trips]
+    MEASURE RoutesMonthly[Zone Dropoffs] =
+        CALCULATE (
+            [Route Trips],
+            USERELATIONSHIP ( RoutesMonthly[dropoff_locationsk], DimLocation[locationsk] )
+        )
+    MEASURE RoutesMonthly[Zone Net Inflow] = [Zone Dropoffs] - [Zone Pickups]
+
+    // ======================================================== Trang 6: tuyến & bản đồ (A7, B5)
+    // Thời gian trung bình thay cho quãng đường trung bình trên trang này: một chuyến có quãng đường bất thường
+    // (03/2025) làm quãng đường trung bình của tuyến Upper East Side South → North lên 12,07 dặm (bình thường 1,04).
+    MEASURE RoutesMonthly[Route Avg Duration (min)] =
+        DIVIDE ( SUM ( RoutesMonthly[total_duration_minutes] ), SUM ( RoutesMonthly[valid_duration_trips] ) )
+    // Tỷ trọng của tuyến trong mọi chuyến của lựa chọn. REMOVEFILTERS trên cột route cũng bỏ bộ lọc Top N
+    // của visual, nên mẫu số là tổng mọi tuyến chứ không phải tổng 10 tuyến đang hiện.
+    MEASURE RoutesMonthly[Route Trip Share] =
+        DIVIDE ( [Route Trips], CALCULATE ( [Route Trips], REMOVEFILTERS ( RoutesMonthly[route] ) ) )
+    // Số tuyến (cặp tên khu vực đón → trả) có ít nhất một chuyến.
+    MEASURE RoutesMonthly[Route Count] = DISTINCTCOUNT ( RoutesMonthly[route] )
+    // Mức tập trung: 10 tuyến đông nhất chiếm bao nhiêu phần trăm chuyến (hòa ở hạng 10 thì lấy cả nhóm hòa).
+    MEASURE RoutesMonthly[Top 10 Routes Share] =
+        VAR t = TOPN ( 10, VALUES ( RoutesMonthly[route] ), [Route Trips], DESC )
+        RETURN DIVIDE ( CALCULATE ( [Route Trips], KEEPFILTERS ( t ) ), [Route Trips] )
+    // Chuyến có quận đón khác quận trả (gồm cả chuyến đi/đến Outside of NYC và Unknown).
+    MEASURE RoutesMonthly[Cross-Borough Trip Share] =
+        DIVIDE (
+            CALCULATE (
+                [Route Trips],
+                KEEPFILTERS (
+                    FILTER (
+                        ALL ( RoutesMonthly[pickup_borough], RoutesMonthly[dropoff_borough] ),
+                        RoutesMonthly[pickup_borough] <> RoutesMonthly[dropoff_borough]
+                    )
+                )
+            ),
+            [Route Trips]
+        )
+    // Chuyến đón tại sân bay (JFK, LaGuardia: service zone Airports; Newark: EWR) qua quan hệ pickup đang bật.
+    MEASURE RoutesMonthly[Airport Pickup Share] =
+        DIVIDE ( CALCULATE ( [Route Trips], KEEPFILTERS ( DimLocation[servicezone] IN { "Airports", "EWR" } ) ), [Route Trips] )
+    // So với cùng kỳ năm trước (mart tháng): lùi monthkey 100, như các measure của trang 5.
+    MEASURE RoutesMonthly[Cross-Borough Share Change (pp)] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Cross-Borough Trip Share]
+        VAR py = CALCULATE ( [Cross-Borough Trip Share], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE RoutesMonthly[Airport Pickup Share Change (pp)] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Airport Pickup Share]
+        VAR py = CALCULATE ( [Airport Pickup Share], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    // Khu vực có nhiều lượt đón nhất (card K4). Theo tên khu vực: Corona (56, 57) được cộng chung.
+    MEASURE RoutesMonthly[Top Pickup Zone] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimLocation[zone] ), "@v", [Zone Pickups] ), [@v], DESC )
+        RETURN IF ( NOT ISBLANK ( [Zone Pickups] ), CONCATENATEX ( t, DimLocation[zone], ", " ) )
+    MEASURE RoutesMonthly[Top Pickup Zone Share] =
+        VAR t = TOPN ( 1, ADDCOLUMNS ( VALUES ( DimLocation[zone] ), "@v", [Zone Pickups] ), [@v], DESC )
+        RETURN DIVIDE ( MAXX ( t, [@v] ), [Zone Pickups] )
+    // Cân bằng đón/trả của khu vực, từ -1 (chỉ có lượt đón) đến +1 (chỉ có lượt trả). Màu bản đồ dùng tỷ lệ
+    // thay cho số chuyến vì số chuyến lệch rất mạnh (trung vị 18 nghìn lượt đón, lớn nhất 3,9 triệu).
+    // Khu vực dưới 1.000 lượt trong lựa chọn trả BLANK (tỷ lệ của mẫu nhỏ dao động mạnh), hiện màu xám.
+    MEASURE RoutesMonthly[Zone Net Flow Ratio] =
+        VAR p = [Zone Pickups]
+        VAR d = [Zone Dropoffs]
+        RETURN IF ( p + d >= 1000, DIVIDE ( d - p, d + p ) )
+
+    // ======================================================== TripProfile (A5, B1, B3)
+    MEASURE TripProfile[Profile Trips] = SUM ( TripProfile[total_trips] )
+    MEASURE TripProfile[Profile Revenue] = SUM ( TripProfile[total_revenue] )
+    MEASURE TripProfile[Profile Trip Share] =
+        DIVIDE ( [Profile Trips], CALCULATE ( [Profile Trips], ALLSELECTED () ) )
+    MEASURE TripProfile[Profile Avg Tip Rate] =
+        DIVIDE ( SUM ( TripProfile[credit_tip_amount] ), SUM ( TripProfile[credit_fare_amount] ) )
+    // B1: vận tốc trung bình = trung bình vận tốc từng chuyến hợp lệ (modeling.pdf trang 4).
+    MEASURE TripProfile[Profile Avg Speed (mph)] =
+        DIVIDE ( SUM ( TripProfile[sum_trip_speed] ), SUM ( TripProfile[valid_speed_trips] ) )
+    // Cách tính thay thế trong câu B1: tổng quãng đường / tổng giờ (trên mọi chuyến của Fact).
+    MEASURE TripProfile[Profile Overall Speed (mph)] =
+        DIVIDE ( SUM ( TripProfile[total_distance] ), SUM ( TripProfile[total_duration_minutes] ) / 60 )
+    MEASURE TripProfile[Profile Avg Distance (mi)] =
+        DIVIDE ( SUM ( TripProfile[total_distance] ), SUM ( TripProfile[valid_distance_trips] ) )
+    MEASURE TripProfile[Profile Avg Revenue per Trip] = DIVIDE ( [Profile Revenue], [Profile Trips] )
+
+    // ======================================================== Trang 5: hồ sơ chuyến đi (A5, B1)
+    MEASURE TripProfile[Profile Avg Duration (min)] =
+        DIVIDE ( SUM ( TripProfile[total_duration_minutes] ), SUM ( TripProfile[valid_duration_trips] ) )
+    // Tỷ trọng chuyến dưới 2 dặm trên mọi chuyến (giữ các bộ lọc khác).
+    MEASURE TripProfile[Short Trip Share] =
+        DIVIDE (
+            CALCULATE ( [Profile Trips], DimDistanceGroup[distancegroupcode] = "SHORT" ),
+            CALCULATE ( [Profile Trips], REMOVEFILTERS ( DimDistanceGroup ) )
+        )
+    // Tỷ trọng chuyến 1 khách trên các chuyến CÓ ghi nhận số khách (bỏ nhóm No passenger count, 16,5%).
+    MEASURE TripProfile[Solo Ride Share] =
+        DIVIDE (
+            CALCULATE ( [Profile Trips], DimPassengerGroup[passengergroupcode] = "SINGLE" ),
+            CALCULATE ( [Profile Trips], DimPassengerGroup[passengergroupcode] IN { "SINGLE", "SMALL", "LARGE" } )
+        )
+    // So với cùng kỳ năm trước cho mart tháng: TripProfile nối DimMonth (không nối DimDate) nên không dùng
+    // SAMEPERIODLASTYEAR; lùi monthkey đi 100 (một năm) và áp lại bằng TREATAS sau khi xóa bộ lọc DimMonth.
+    MEASURE TripProfile[Short Trip Share Change (pp)] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Short Trip Share]
+        VAR py = CALCULATE ( [Short Trip Share], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE TripProfile[Solo Ride Share Change (pp)] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Solo Ride Share]
+        VAR py = CALCULATE ( [Solo Ride Share], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), ( cur - py ) * 100 )
+    MEASURE TripProfile[Profile Avg Speed YoY %] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Profile Avg Speed (mph)]
+        VAR py = CALCULATE ( [Profile Avg Speed (mph)], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), DIVIDE ( cur - py, py ) )
+    MEASURE TripProfile[Profile Avg Duration YoY %] =
+        VAR keys = SELECTCOLUMNS ( VALUES ( DimMonth[monthkey] ), "k", DimMonth[monthkey] - 100 )
+        VAR cur = [Profile Avg Duration (min)]
+        VAR py = CALCULATE ( [Profile Avg Duration (min)], REMOVEFILTERS ( DimMonth ), TREATAS ( keys, DimMonth[monthkey] ) )
+        RETURN IF ( HASONEVALUE ( DimMonth[year] ) && NOT ISBLANK ( cur ) && NOT ISBLANK ( py ), DIVIDE ( cur - py, py ) )
+
+    // ======================================================== MonthlyKPI (B2, B3, B4)
+    // Mỗi tháng một dòng: dùng với trục DimMonth[yearmonth]; khi chọn nhiều tháng các giá trị tỷ lệ
+    // không cộng được nên trả BLANK.
+    MEASURE MonthlyKPI[KPI Trips] = SUM ( MonthlyKPI[total_trips] )
+    MEASURE MonthlyKPI[KPI Revenue] = SUM ( MonthlyKPI[total_revenue] )
+    MEASURE MonthlyKPI[KPI Revenue MoM %] = SELECTEDVALUE ( MonthlyKPI[revenue_growth_mom] )
+    MEASURE MonthlyKPI[KPI Trips MoM %] = SELECTEDVALUE ( MonthlyKPI[trip_growth_mom] )
+    MEASURE MonthlyKPI[KPI Revenue YoY %] = SELECTEDVALUE ( MonthlyKPI[revenue_growth_yoy] )
+    MEASURE MonthlyKPI[KPI Trips YoY %] = SELECTEDVALUE ( MonthlyKPI[trip_growth_yoy] )
+    MEASURE MonthlyKPI[KPI Avg Revenue per Trip] =
+        DIVIDE ( [KPI Revenue], [KPI Trips] )
+    MEASURE MonthlyKPI[KPI Avg Distance per Trip (mi)] =
+        DIVIDE ( SUM ( MonthlyKPI[total_distance] ), SUM ( MonthlyKPI[valid_distance_trips] ) )
+
+// Truy vấn kiểm tra nhanh sau khi Run: tổng toàn kỳ phải là 85.745.246 chuyến, ~2.475,5 triệu USD.
+EVALUATE
+    ROW (
+        "Trips", [Trips],
+        "Revenue", [Revenue],
+        "Profile Trips", [Profile Trips],
+        "Route Trips", [Route Trips],
+        "Pickup Trips", [Pickup Trips],
+        "KPI Trips", [KPI Trips],
+        "Avg Speed (mph)", [Avg Speed (mph)],
+        "Avg Tip Rate", [Avg Tip Rate]
+    )

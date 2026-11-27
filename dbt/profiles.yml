@@ -1,0 +1,15 @@
+nyc_taxi_dw:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Cùng file với ingestion của Mage (docker-compose.yml đặt DUCKDB_PATH).
+      # DuckDB chỉ cho một tiến trình ghi: không chạy dbt khi pipeline Mage đang nạp.
+      path: "{{ env_var('DUCKDB_PATH', '/home/src/data/warehouse/nyc_taxi.duckdb') }}"
+      schema: dds
+      threads: 4
+      # dbt-duckdb áp settings lên mọi cursor; temp_directory không đổi được sau khi đã dùng
+      # nên không đặt ở đây: DuckDB dùng mặc định <file>.duckdb.tmp cạnh file dữ liệu.
+      settings:
+        memory_limit: "{{ env_var('DUCKDB_MEMORY_LIMIT', '4GB') }}"
+        threads: "{{ env_var('DUCKDB_THREADS', '4') }}"

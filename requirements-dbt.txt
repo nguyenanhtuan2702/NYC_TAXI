@@ -1,0 +1,4 @@
+# Cài vào virtualenv riêng /opt/dbt trong image (xem Dockerfile), không chung với Mage.
+dbt-core~=1.12.0
+dbt-duckdb~=1.11.1
+duckdb~=1.5.6

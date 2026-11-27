@@ -1,0 +1,168 @@
+blocks:
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - export_zone_lookup
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: load_zone_lookup
+  retry_config: null
+  status: not_executed
+  timeout: null
+  type: data_loader
+  upstream_blocks: []
+  uuid: load_zone_lookup
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - load_trips_to_raw
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: export_zone_lookup
+  retry_config:
+    retries: 2
+    delay: 60
+    max_delay: 600
+    exponential_backoff: true
+  status: not_executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - load_zone_lookup
+  uuid: export_zone_lookup
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - run_dbt_build
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: load_trips_to_raw
+  retry_config:
+    retries: 2
+    delay: 60
+    max_delay: 600
+    exponential_backoff: true
+  status: not_executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - export_zone_lookup
+  uuid: load_trips_to_raw
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - run_quality_checks
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: run_dbt_build
+  retry_config:
+    retries: 2
+    delay: 60
+    max_delay: 600
+    exponential_backoff: true
+  status: not_executed
+  timeout: null
+  type: custom
+  upstream_blocks:
+  - load_trips_to_raw
+  uuid: run_dbt_build
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - export_powerbi
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: run_quality_checks
+  retry_config: null
+  status: not_executed
+  timeout: null
+  type: custom
+  upstream_blocks:
+  - run_dbt_build
+  uuid: run_quality_checks
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: export_powerbi
+  retry_config:
+    retries: 2
+    delay: 60
+    max_delay: 600
+    exponential_backoff: true
+  status: not_executed
+  timeout: null
+  type: custom
+  upstream_blocks:
+  - run_quality_checks
+  uuid: export_powerbi
+cache_block_output_in_memory: false
+callbacks:
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: notify_pipeline_failure
+  retry_config: null
+  status: not_executed
+  timeout: null
+  type: callback
+  upstream_blocks:
+  - load_zone_lookup
+  - export_zone_lookup
+  - load_trips_to_raw
+  - run_dbt_build
+  - run_quality_checks
+  - export_powerbi
+  uuid: notify_pipeline_failure
+concurrency_config: {}
+conditionals: []
+created_at: '2026-11-21 04:00:00.000000+00:00'
+data_integration: null
+description: 'End-to-end: Zone Lookup -> raw trips (skip loaded months) -> dbt build -> QA -> Parquet for Power BI'
+executor_config: {}
+executor_count: 1
+executor_type: null
+extensions: {}
+name: nyc_taxi_e2e
+notification_config: {}
+remote_variables_dir: null
+retry_config: {}
+run_pipeline_in_one_process: false
+settings:
+  triggers: null
+spark_config: {}
+tags:
+- e2e
+type: python
+uuid: nyc_taxi_e2e
+variables:
+  check_source_updates: 'true'
+  file_name: ALL
+  qa_suite: all
+  qa_large_scans: 'false'
+variables_dir: /home/src/mage_data/mage
+widgets: []

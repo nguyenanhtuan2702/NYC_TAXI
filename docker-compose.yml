@@ -1,0 +1,32 @@
+name: nyc-taxi
+
+services:
+  mage:
+    build: .
+    container_name: nyc-mage
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # DuckDB chạy trong tiến trình Mage/dbt (không có service database riêng),
+          # nên RAM dành cho cả hai. Giữ DUCKDB_MEMORY_LIMIT thấp hơn giới hạn này.
+          memory: 6g
+    # Giá trị lấy từ .env (nếu có), nếu không dùng mặc định sau dấu :-
+    environment:
+      USER_CODE_PATH: /home/src/mage
+      DUCKDB_PATH: ${DUCKDB_PATH:-/home/src/data/warehouse/nyc_taxi.duckdb}
+      DUCKDB_MEMORY_LIMIT: ${DUCKDB_MEMORY_LIMIT:-4GB}
+      DUCKDB_THREADS: ${DUCKDB_THREADS:-4}
+      DUCKDB_TEMP_DIR: ${DUCKDB_TEMP_DIR:-/home/src/data/warehouse/tmp}
+      RAW_DATA_DIR: ${RAW_DATA_DIR:-/home/src/data/raw}
+      # Webhook nhận cảnh báo khi pipeline lỗi (Slack/Discord/Teams); để trống = chỉ ghi file
+      # data/warehouse/alerts/pipeline_alerts.jsonl. Đặt trong .env, không commit URL.
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    ports:
+      # Chỉ mở trên máy này: giao diện Mage chạy được code tùy ý trên thư mục repo (bind mount).
+      - "127.0.0.1:6789:6789"
+    volumes:
+      # Bind mount cả repo: Parquet (data/raw), file DuckDB (data/warehouse) và code
+      # đều nằm trên máy host, nên Power BI / DBeaver trên Windows mở được trực tiếp.
+      - .:/home/src
+    command: /app/run_app.sh mage start mage
